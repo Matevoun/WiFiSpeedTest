@@ -1,15 +1,46 @@
+# Android Studio / IntelliJ
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+.idea/
+!.idea/runConfigurations/      # ← optionnel : si tu veux garder tes configs de run (rarement utile)
+.idea/*.xml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/tasks.xml
+.idea/inspectionProfiles/
+.idea/codeStyles/
+.idea/dictionaries/
+
+# Gradle
+.gradle/
+build/
+*/build/
+gradle/
+gradlew
+gradlew.bat
+
+# Local config (NE JAMAIS synchroniser !)
+local.properties
+
+# macOS fantômes (tous les trucs qui pourrissent Dropbox)
 .DS_Store
-/build
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.DocumentRevisions-V100
+.TemporaryItems
+.apdisk
+
+# Captures & autres
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# APK / AAB générés
+*.apk
+*.aab
+*.ap_
