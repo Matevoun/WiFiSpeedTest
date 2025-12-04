@@ -1,24 +1,18 @@
+
 @file:Suppress("DEPRECATION", "RedundantQualifierName", "RegExpRedundantEscape")
 
 package org.wda.wifispeedtest
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.net.ConnectivityManager
-import android.net.MacAddress
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.Uri
 import android.net.wifi.ScanResult
-import android.net.wifi.WifiManager
-import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -27,7 +21,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +35,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.VisualTransformation
@@ -58,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -65,14 +63,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.pow
@@ -80,27 +78,27 @@ import kotlin.math.pow
 @Suppress("DEPRECATION")
 class MainActivity : ComponentActivity() {
 
-    // Remplacé Handler par lifecycleScope pour poster sur le thread UI
-    private var wifiScanReceiver: BroadcastReceiver? = null
-    private var connectivityManager: ConnectivityManager? = null
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val viewModel: WifiViewModel by viewModels()
 
-    val currentBssidState = mutableStateOf<String?>(null)
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            super.onAvailable(network)
+            viewModel.updateCurrentConnectionInfo(applicationContext)
+        }
 
-    private val wifiStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            updateCurrentBssid()
+        override fun onLost(network: Network) {
+            super.onLost(network)
+            viewModel.updateCurrentConnectionInfo(applicationContext)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        connectivityManager = getSystemService(ConnectivityManager::class.java)
 
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    WifiScannerApp()
+                    WifiScannerApp(viewModel)
                 }
             }
         }
@@ -108,43 +106,20 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        updateCurrentBssid() // mise à jour immédiate
-
-        // Enregistrement du receiver d'état Wi‑Fi (unique, on évite double enregistrement)
-        try {
-            registerReceiver(wifiStateReceiver, IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION))
-        } catch (_: IllegalArgumentException) {
-            // déjà enregistré ou autre problème ; on ignore
-        }
+        viewModel.updateCurrentConnectionInfo(this)
+        viewModel.registerScanReceiver(this)
+        val connectivityManager = getSystemService(ConnectivityManager::class.java)
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+        connectivityManager.registerNetworkCallback(request, networkCallback)
     }
 
     override fun onPause() {
         super.onPause()
-        // Désinscription sécurisée du scan receiver s'il existe
-        wifiScanReceiver?.let {
-            try {
-                unregisterReceiver(it)
-            } catch (_: IllegalArgumentException) {
-            } finally {
-                wifiScanReceiver = null
-            }
-        }
-
-        // Désinscription sécurisée du wifiStateReceiver
-        try {
-            unregisterReceiver(wifiStateReceiver)
-        } catch (_: IllegalArgumentException) {
-        }
-
-        // Désinscription du callback réseau si présent
-        networkCallback?.let {
-            try {
-                connectivityManager?.unregisterNetworkCallback(it)
-            } catch (_: Exception) {
-            } finally {
-                networkCallback = null
-            }
-        }
+        viewModel.unregisterScanReceiver(this)
+        val connectivityManager = getSystemService(ConnectivityManager::class.java)
+        connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 
     fun hasAllPermissions(context: Context): Boolean {
@@ -156,155 +131,12 @@ class MainActivity : ComponentActivity() {
         return perms.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        // Compose gère le layout ; rien à faire ici
+    fun openWifiSettings(context: Context) {
+        val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
+        context.startActivity(intent)
     }
-
-    @SuppressLint("MissingPermission")
-    internal fun updateCurrentBssid() {
-        val wifiManager = applicationContext.getSystemService(WifiManager::class.java) ?: return
-        @Suppress("DEPRECATION")
-        val info = try { wifiManager.connectionInfo } catch (_: Exception) { null }
-        val bssid = if (info != null && info.networkId != -1 && !info.bssid.isNullOrBlank()) {
-            info.bssid.uppercase()
-        } else null
-
-        if (bssid != currentBssidState.value) {
-            currentBssidState.value = bssid
-        }
-    }
-
-    @SuppressLint("MissingPermission")
-    fun startScan(context: Context, onResults: (List<ScanResult>) -> Unit) {
-        val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java) ?: run {
-            onResults(emptyList())
-            return
-        }
-
-        // Si un scanReceiver est déjà enregistré, on le désinscrit proprement avant d'enregistrer un nouveau
-        wifiScanReceiver?.let {
-            try { context.unregisterReceiver(it) } catch (_: IllegalArgumentException) {}
-            wifiScanReceiver = null
-        }
-
-        wifiScanReceiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context, intent: Intent) {
-                val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
-                if (success) {
-                    @Suppress("DEPRECATION")
-                    val results = try {
-                        wifiManager.scanResults
-                            .filter { it.getSsidName().isNotBlank() }
-                            .sortedByDescending { it.level }
-                    } catch (_: Exception) {
-                        emptyList()
-                    }
-                    onResults(results)
-
-                    // Désinscription après réception
-                    try { c.unregisterReceiver(this) } catch (_: IllegalArgumentException) {}
-                    wifiScanReceiver = null
-                } else {
-                    // Si échec, on renvoie liste vide et désinscrit
-                    onResults(emptyList())
-                    try { c.unregisterReceiver(this) } catch (_: IllegalArgumentException) {}
-                    wifiScanReceiver = null
-                }
-            }
-        }
-
-        val intentFilter = IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
-        context.registerReceiver(wifiScanReceiver, intentFilter)
-
-        try {
-            @Suppress("DEPRECATION")
-            wifiManager.startScan()
-        } catch (_: SecurityException) {
-            // Permissions manquantes
-            try { context.unregisterReceiver(wifiScanReceiver) } catch (_: IllegalArgumentException) {}
-            wifiScanReceiver = null
-            Toast.makeText(context, "Permission manquante pour scanner les réseaux.", Toast.LENGTH_LONG).show()
-            onResults(emptyList())
-        } catch (_: Exception) {
-            // Erreur générique lors du démarrage du scan
-            try { context.unregisterReceiver(wifiScanReceiver) } catch (_: IllegalArgumentException) {}
-            wifiScanReceiver = null
-            onResults(emptyList())
-        }
-    }
-
-    private fun connectWithSpecifier(
-        context: Context,
-        specifier: WifiNetworkSpecifier,
-        ssid: String,
-        expectedBssid: String
-    ) {
-        // Nettoyage du callback précédent
-        networkCallback?.let {
-            try { connectivityManager?.unregisterNetworkCallback(it) } catch (_: Exception) {}
-            networkCallback = null
-        }
-
-        val request = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .setNetworkSpecifier(specifier)
-            .build()
-
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-
-            private fun ui(action: () -> Unit) {
-                // Utilisation de lifecycleScope pour poster sur le thread UI
-                lifecycleScope.launch(Dispatchers.Main) { action() }
-            }
-
-            override fun onAvailable(network: Network) {
-                ui {
-                    val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java)
-                    @Suppress("DEPRECATION")
-                    val connectedBssid = try { wifiManager?.connectionInfo?.bssid?.uppercase() } catch (_: Exception) { null }
-
-                    when {
-                        connectedBssid == null -> {
-                            Toast.makeText(context, "✓ Réseau $ssid disponible (BSSID non fourni)", Toast.LENGTH_LONG).show()
-                        }
-                        connectedBssid.equals(expectedBssid.uppercase(), ignoreCase = true) -> {
-                            Toast.makeText(context, "✓ Connecté à $ssid ($connectedBssid)", Toast.LENGTH_LONG).show()
-                        }
-                        else -> {
-                            Toast.makeText(context, "⚠ Connecté à $ssid mais BSSID différent ($connectedBssid ≠ $expectedBssid)", Toast.LENGTH_LONG).show()
-                        }
-                    }
-
-                    updateCurrentBssid()
-                }
-            }
-
-            override fun onUnavailable() {
-                ui {
-                    Toast.makeText(context, "Connexion impossible à $ssid (refus système)", Toast.LENGTH_LONG).show()
-                }
-            }
-
-            override fun onLost(network: Network) {
-                ui {
-                    Toast.makeText(context, "Connexion perdue à $ssid", Toast.LENGTH_LONG).show()
-                    updateCurrentBssid()
-                }
-            }
-        }
-
-        try {
-            connectivityManager?.requestNetwork(request, networkCallback!!, 10000)
-            Toast.makeText(context, "Connexion à $ssid en cours…", Toast.LENGTH_SHORT).show()
-        } catch (e: SecurityException) {
-            Toast.makeText(context, "Permission refusée par le système: ${e.message}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "Erreur de connexion: ${e.message}", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun hasWifiPermissions(context: Context): Boolean {
+    
+    fun hasWifiPermissions(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(context, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED &&
                     ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -312,62 +144,53 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         }
     }
-
-    @SuppressLint("MissingPermission")
-    fun connectToNetwork(context: Context, result: ScanResult, password: String? = null) {
-        if (!hasWifiPermissions(context)) {
-            Toast.makeText(context, "Permissions manquantes pour se connecter.", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        val ssid = result.getSsidName()
-        val bssid = try {
-            MacAddress.fromString(result.BSSID)
-        } catch (_: IllegalArgumentException) {
-            Toast.makeText(context, "Adresse MAC invalide", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val caps = result.capabilities.uppercase()
-
-        // CAS MODERNES : WPA2 / WPA3 / Ouvert → WifiNetworkSpecifier
-        if (caps.contains("WPA2") || caps.contains("WPA3") || caps.contains("ESS") || caps.isBlank()) {
-            val builder = WifiNetworkSpecifier.Builder()
-                .setSsid(ssid)
-                .setBssid(bssid)
-
-            if (!password.isNullOrEmpty()) {
-                if (caps.contains("WPA3")) builder.setWpa3Passphrase(password)
-                else if (caps.contains("WPA2")) builder.setWpa2Passphrase(password)
-            }
-
-            connectWithSpecifier(context, builder.build(), ssid, bssid.toString())
-            return
-        }
-
-        // CAS ANCIENS : WEP / WPA1 uniquement → message clair
-        if (caps.contains("WEP") || (caps.contains("WPA") && !caps.contains("WPA2"))) {
-            Toast.makeText(
-                context,
-                "Le type de sécurité $caps n’est plus supporté sur Android ${Build.VERSION.SDK_INT}.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-
-        Toast.makeText(context, "Type de sécurité inconnu : $caps", Toast.LENGTH_LONG).show()
-    }
 }
 
 @Composable
-fun WifiScannerApp() {
-    var scanResults by remember { mutableStateOf<List<ScanResult>>(emptyList()) }
+fun WifiScannerApp(viewModel: WifiViewModel) {
+    val scanResults by viewModel.scanResults.collectAsStateWithLifecycle()
+    val isScanning by viewModel.isScanning.collectAsStateWithLifecycle()
+    val currentBssid by viewModel.currentBssid.collectAsStateWithLifecycle()
+    val showConnectionFailedDialog by viewModel.showConnectionFailedDialog.collectAsStateWithLifecycle()
+    
     val context = LocalContext.current
     val mainActivity = context as? MainActivity
-    var isScanning by remember { mutableStateOf(false) }
     var resultToShowDialog by remember { mutableStateOf<ScanResult?>(null) }
 
-    val currentBssid by (mainActivity?.currentBssidState ?: remember { mutableStateOf(null) })
+    LaunchedEffect(Unit) {
+        viewModel.shareFileEvent.collect { uri ->
+            val shareIntent: Intent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_STREAM, uri)
+                type = "text/csv"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Partager le fichier CSV"))
+        }
+    }
+
+    if (showConnectionFailedDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissConnectionFailedDialog() },
+            title = { Text("Échec de la connexion") },
+            text = { Text("Impossible de se connecter automatiquement. Voulez-vous ouvrir les paramètres WiFi pour une connexion manuelle ?") },
+            confirmButton = {
+                TextButton(
+                    onClick = { 
+                        viewModel.dismissConnectionFailedDialog()
+                        mainActivity?.openWifiSettings(context)
+                    }
+                ) {
+                    Text("Ouvrir les paramètres")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissConnectionFailedDialog() }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
 
     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES)
@@ -379,11 +202,7 @@ fun WifiScannerApp() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
         if (grants.values.all { it }) {
-            isScanning = true
-            mainActivity?.startScan(context) { results ->
-                scanResults = results
-                isScanning = false
-            }
+            viewModel.startScan(context)
         } else {
             Toast.makeText(context, "Les permissions sont nécessaires. Activez-les dans les paramètres.", Toast.LENGTH_LONG).show()
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
@@ -394,21 +213,42 @@ fun WifiScannerApp() {
 
     val startScan = {
         if (mainActivity?.hasAllPermissions(context) == true) {
-            isScanning = true
-            mainActivity.startScan(context) { results ->
-                scanResults = results
-                isScanning = false
-                mainActivity.updateCurrentBssid()
-            }
+            viewModel.startScan(context)
         } else {
             permissionLauncher.launch(permissions)
         }
     }
 
     Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { if (!isScanning) startScan() }) {
-                Text("Actualiser", modifier = Modifier.padding(16.dp))
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                FloatingActionButton(
+                    onClick = { viewModel.exportToCsvAndShare(context, scanResults) },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    Text("CSV", modifier = Modifier.padding(16.dp))
+                }
+
+                FloatingActionButton(
+                    onClick = { viewModel.getCurrentLocation(context) },
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Text("GPS", fontSize = 10.sp, modifier = Modifier.padding(4.dp))
+                }
+
+                FloatingActionButton(
+                    onClick = { if (!isScanning) startScan() },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Text("Actualiser", modifier = Modifier.padding(16.dp))
+                }
             }
         }
     ) { padding ->
@@ -418,16 +258,12 @@ fun WifiScannerApp() {
                 .fillMaxSize()
         ) {
             when {
-                scanResults.isEmpty() && !isScanning -> {
-                    HomeScreen()
-                }
-                else -> {
-                    ScanResultsScreen(
-                        scanResults = scanResults,
-                        currentBssid = currentBssid,
-                        onItemClick = { resultToShowDialog = it }
-                    )
-                }
+                scanResults.isEmpty() && !isScanning -> HomeScreen()
+                else -> ScanResultsScreen(
+                    scanResults = scanResults,
+                    currentBssid = currentBssid,
+                    onItemClick = { resultToShowDialog = it }
+                )
             }
 
             if (isScanning) {
@@ -443,13 +279,10 @@ fun WifiScannerApp() {
                     result = result,
                     onDismiss = { resultToShowDialog = null },
                     onConnect = { password ->
-                        if (mainActivity?.hasAllPermissions(context) == true) {
-                            mainActivity.connectToNetwork(context, result, password)
+                        if (mainActivity?.hasWifiPermissions(context) == true) {
+                            viewModel.connectToNetwork(context, result, password)
                         } else {
-                            Toast.makeText(context, "Permissions manquantes. Veuillez les activer dans les paramètres.", Toast.LENGTH_LONG).show()
-                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                            intent.data = Uri.fromParts("package", context.packageName, null)
-                            context.startActivity(intent)
+                            Toast.makeText(context, "Permissions manquantes.", Toast.LENGTH_LONG).show()
                         }
                         resultToShowDialog = null
                     }
@@ -461,19 +294,87 @@ fun WifiScannerApp() {
 
 @Composable
 fun HomeScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    val uriHandler = LocalUriHandler.current
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Main message in the center
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 150.dp), // Pushed up a bit
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 "Cliquez sur le bouton 'Actualiser' pour rechercher les réseaux WiFi.",
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(horizontal = 32.dp),
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Version and Disclaimer at the bottom
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text(
-                text = "v${BuildConfig.VERSION_NAME}",
+                text = try { "v${BuildConfig.VERSION_NAME}" } catch (_: Exception) { "v0.8" }, // Fallback si BuildConfig foire (rare)
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                modifier = Modifier.align(Alignment.CenterHorizontally)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+
+            // --- Disclaimer --- 
+            val annotatedString = buildAnnotatedString {
+                append("Développé bénévolement par ")
+                pushStringAnnotation(tag = "dev_url", annotation = "https://mathieu.charreyre.net")
+                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                    append("Mathieu CHARREYRE")
+                }
+                pop()
+                append(" pour l'")
+                pushStringAnnotation(tag = "wda_url", annotation = "https://wda-fr.org")
+                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                    append("Association WDA")
+                }
+                pop()
+                append(".\n(Licence MIT)")
+            }
+
+            ClickableText(
+                text = annotatedString,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                ),
+                onClick = { offset ->
+                    annotatedString.getStringAnnotations(tag = "dev_url", start = offset, end = offset)
+                        .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                    annotatedString.getStringAnnotations(tag = "wda_url", start = offset, end = offset)
+                        .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                }
+            )
+
+            // --- Donation --- 
+            val donationString = buildAnnotatedString {
+                append("Si cette application vous est utile, pensez à ")
+                pushStringAnnotation(tag = "donate_url", annotation = "https://wda-fr.org/index.php?page=help")
+                withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                    append("faire un don à l'association")
+                }
+                pop()
+                append(".")
+            }
+
+            ClickableText(
+                text = donationString,
+                style = MaterialTheme.typography.bodyMedium.copy(textAlign = TextAlign.Center),
+                onClick = { offset ->
+                    donationString.getStringAnnotations(tag = "donate_url", start = offset, end = offset)
+                        .firstOrNull()?.let { uriHandler.openUri(it.item) }
+                }
             )
         }
     }
@@ -518,7 +419,6 @@ fun WifiInfoItem(result: ScanResult, onClick: () -> Unit, currentBssid: String?)
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // ← LIGNE TITRE : SSID + check + flèche → TOUT ALIGNÉ PARFAITEMENT AU CENTRE VERTICAL
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -533,36 +433,33 @@ fun WifiInfoItem(result: ScanResult, onClick: () -> Unit, currentBssid: String?)
                         fontSize = 20.sp
                     )
                     if (isCurrentlyConnected) {
-                        Text(
-                            text = "✓",
-                            fontSize = 26.sp,
-                            modifier = Modifier.padding(start = 10.dp)
-                        )
+                        Text("✓", fontSize = 26.sp, modifier = Modifier.padding(start = 10.dp))
                     }
                 }
-
-                // Flèche parfaitement centrée verticalement avec le SSID
-                Text(
-                    text = "›",
-                    fontSize = 28.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(start = 16.dp)
-                )
+                Text("›", fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(start = 16.dp))
             }
 
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Le reste inchangé
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Puissance : ") }
                 append("${result.level} dBm")
             })
-            @Suppress("DEPRECATION")
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("MAC : ") }
                 append(result.BSSID)
+            })
+            Text(buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Canal : ") }
+                val channel = getChannelFromFrequency(result.frequency)
+                append(if (channel > 0) "$channel" else "Inconnu")
+            })
+            // Nouvelle : Bande de fréquence (2.4/5/6 GHz)
+            Text(buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Bande : ") }
+                append(getBandAndWidth(result))  // Combo GHz (MHz) : un seul champ, clean et complet
             })
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Protection : ") }
@@ -604,7 +501,10 @@ fun ConnectionDialog(result: ScanResult, onDismiss: () -> Unit, onConnect: (Stri
                         label = { Text("Mot de passe") },
                         visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
-                            TextButton(onClick = { showPassword = !showPassword }) {
+                            TextButton(
+                                onClick = { showPassword = !showPassword },
+                                modifier = Modifier.padding(end = 4.dp) // Évite le débord, comme un chat qui laisse de l'espace
+                            ) {
                                 Text(if (showPassword) "Masquer" else "Afficher")
                             }
                         },
@@ -616,27 +516,22 @@ fun ConnectionDialog(result: ScanResult, onDismiss: () -> Unit, onConnect: (Stri
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                onConnect(if (isSecure) password else null)
-            }) {
+            TextButton(onClick = { onConnect(if (isSecure) password else null) }) {
                 Text("Se connecter")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Annuler")
-            }
+            TextButton(onClick = onDismiss) { Text("Annuler") }
         }
     )
 }
 
 fun getSecurityType(result: ScanResult): String {
-    @Suppress("DEPRECATION")
     val capabilities = result.capabilities
     return when {
-        capabilities.contains("WPA3") -> "WPA3"
-        capabilities.contains("WPA2") -> "WPA2"
-        capabilities.contains("WPA") -> "WPA"
+        capabilities.contains("WPA3") -> "WPA3-PSK"
+        capabilities.contains("WPA2") -> "WPA2-PSK"
+        capabilities.contains("WPA") -> "WPA-PSK"
         capabilities.contains("WEP") -> "WEP"
         else -> "Ouvert"
     }
@@ -651,9 +546,7 @@ fun getWifiStandard(standard: Int): String {
             ScanResult.WIFI_STANDARD_11AX -> "WiFi 6 (802.11ax)"
             else -> "Inconnu"
         }
-    } else {
-        "N/A"
-    }
+    } else "N/A"
 }
 
 fun getSignalColor(level: Int): Color {
@@ -671,19 +564,59 @@ fun getApproximateDistance(level: Int, frequency: Int): Double {
     return 10.0.pow(exp)
 }
 
-/**
- * Récupère le SSID du ScanResult en tenant compte de la version d'Android.
- * Utilise result.SSID (déprécié) pour les versions < TIRAMISU (33)
- * et result.wifiSsid?.toString() (si non null) pour TIRAMISU+.
- */
 @Suppress("DEPRECATION")
 fun ScanResult.getSsidName(): String {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        // Pour Android 13 (TIRAMISU) et supérieur, on utilise wifiSsid
-        // qui est l'objet WifiSsid encapsulant le SSID. On s'assure qu'il n'est pas null.
-        this.wifiSsid?.toString() ?: this.SSID // On garde la valeur dépréciée comme fallback
-    } else {
-        // Pour les versions antérieures, on utilise l'attribut SSID déprécié.
-        this.SSID
+    val modern = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        this.wifiSsid?.toString()
+    } else null
+
+    return when {
+        !modern.isNullOrBlank() -> modern
+        !this.SSID.isNullOrBlank() && this.SSID != "<unknown ssid>" -> this.SSID
+        else -> "Réseau caché"
     }
+}
+
+fun getChannelFromFrequency(frequency: Int): Int {
+    return when (frequency) {
+        in 2412..2484 -> ((frequency - 2412) / 5) + 1
+        in 5170..5825 -> ((frequency - 5000) / 5)
+        in 5955..7115 -> ((frequency - 5950) / 5)
+        else -> -1
+    }
+}
+
+fun getChannelWidthText(width: Int): String {
+    return when (width) {
+        ScanResult.CHANNEL_WIDTH_20MHZ -> "20 MHz"
+        ScanResult.CHANNEL_WIDTH_40MHZ -> "40 MHz"
+        ScanResult.CHANNEL_WIDTH_80MHZ -> "80 MHz"
+        ScanResult.CHANNEL_WIDTH_160MHZ -> "160 MHz"
+        ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> "80+80 MHz"
+        ScanResult.CHANNEL_WIDTH_320MHZ -> "320 MHz"
+        else -> "Inconnu"
+    }
+}
+
+// Détecte la bande WiFi basée sur la fréquence (2.4/5/6 GHz)
+// Utilise 'when (frequency)' pour plus de clarté : frequency est le sujet direct des guards
+fun getBandFromFrequency(frequency: Int): String {
+    return when (frequency) {  // frequency en star : plus narratif, moins de répétitions
+        in 2400..2500 -> "2.4 GHz"
+        in 5000..6000 -> "5 GHz"
+        in 5955..7115 -> "6 GHz"  // Aligné sur getChannelFromFrequency pour cohérence
+        else -> "Inconnu"
+    }
+}
+
+// Combine bande (GHz) et largeur (MHz) en une string lisible, e.g. "2.4 GHz (20 MHz)"
+// Utile pour UI et CSV : garde ça DRY (Don't Repeat Yourself), comme un bon commodat partagé
+fun getBandAndWidth(result: ScanResult): String {
+    val band = getBandFromFrequency(result.frequency)
+    val width = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        "(${getChannelWidthText(result.channelWidth)})"
+    } else {
+        ""  // Pas de largeur sur vieux Android, on zappe les ()
+    }
+    return "$band $width".trim()  // Trim pour virer l'espace si pas de width
 }
