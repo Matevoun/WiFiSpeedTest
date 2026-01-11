@@ -1,0 +1,121 @@
+<resources>
+    <string name="app_name">WiFi Speed Test</string>
+
+    <!-- Permissions -->
+    <string name="permissions_required_toast">Les permissions sont nécessaires. Activez-les dans les paramètres.</string>
+    <string name="location_enable_dialog_title">Activer la localisation</string>
+    <string name="location_enable_dialog_message">Le scan Wi-Fi nécessite que la localisation système soit activée. Souhaitez-vous ouvrir les paramètres de localisation pour l\'activer ?</string>
+    <string name="permission_dialog_title">Permissions requises</string>
+    <string name="permission_dialog_message">Cette application a besoin des autorisations de localisation pour afficher les noms des réseaux Wi-Fi (SSID) et pour effectuer des scans. Veuillez accorder l\'autorisation pour continuer.</string>
+
+    <!-- Buttons & Actions -->
+    <string name="action_open_settings">Ouvrir les paramètres</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_scan">Scanner</string>
+    <string name="action_connect">Se connecter</string>
+    <string name="action_close">Fermer</string>
+    <string name="action_share_csv_title">Partager le fichier CSV</string>
+    <string name="action_show">Afficher</string>
+    <string name="action_hide">Masquer</string>
+    <string name="action_export_csv">CSV</string>
+    <string name="action_about">À propos</string>
+    <string name="action_support">Soutenir :</string>
+    <string name="action_more_info">Plus d\'infos</string>
+
+    <!-- Network & Connection -->
+    <string name="network_connecting_to">Connexion à %1$s</string>
+    <string name="network_connection_failed_title">Échec de la connexion</string>
+    <string name="network_connection_failed_message">Impossible de se connecter automatiquement. Voulez-vous ouvrir les paramètres Wi-Fi pour une connexion manuelle ?</string>
+    <string name="network_connecting_toast">Tentative de connexion automatique…</string>
+    <string name="network_connected_toast">Connecté automatiquement à %1$s !</string>
+    <string name="network_secure_description">Ce réseau est sécurisé.</string>
+    <string name="network_open_description">Réseau ouvert. Se connecter ?</string>
+    <string name="network_password_label">Mot de passe</string>
+    <string name="network_info_power">Puissance :</string>
+    <string name="network_info_mac">MAC :</string>
+    <string name="network_info_channel">Canal :</string>
+    <string name="network_info_band">Bande :</string>
+    <string name="network_info_security">Sécurité :</string>
+    <string name="network_info_wifi_standard">Standard Wi-Fi :</string>
+    <string name="network_info_distance">Distance :</string>
+    <string name="network_info_distance_value">~%.1f m</string>
+    <string name="network_info_distance_over_100">&gt;100 m</string>
+    <string name="network_hidden_ssid"><i>Réseau caché</i></string>
+    <string name="network_status_connected_symbol">✓</string>
+    <string name="network_action_details_symbol">›</string>
+
+    <!-- Scan -->
+    <string name="scan_start_message">Cliquez sur Scanner pour rechercher les réseaux Wi-Fi environnants.</string>
+    <string name="scan_wifi_disabled_toast">Le Wi-Fi est désactivé.</string>
+    <string name="scan_rejected_toast">Scan refusé par le système. Nouvelle tentative dans %1$d s (essai %2$d)</string>
+    <string name="scan_blocked_security_toast">Scan bloqué (SecurityException) : %1$s</string>
+    <string name="scan_failed_exception_toast">Scan échoué (exception) : %1$s</string>
+    <string name="scan_access_results_failed_toast">Accès aux résultats bloqué : %1$s</string>
+
+    <!-- Export -->
+    <string name="export_no_results_toast">Aucun réseau à exporter</string>
+    <string name="export_failed_toast">Échec de l\'export : %1$s</string>
+    <string name="export_success_toast">Exporté dans Téléchargements</string>
+    <string name="export_creating_file_failed">Échec de la création du fichier</string>
+
+    <!-- Location -->
+    <string name="location_unavailable_toast">GPS indisponible : %1$s</string>
+    <string name="location_display_prefix">GPS : </string>
+
+    <!-- Misc -->
+    <string name="unknown">Inconnu</string>
+    <string name="not_applicable">N/A</string>
+
+    <!-- About & Credits Screen -->
+    <string name="about_dialog_title">À propos &amp; Crédits</string>
+    <string name="about_developed_by">Développé bénévolement par </string>
+    <string name="about_developer_name">Mathieu CHARREYRE</string>
+    <string name="about_for_organization"> pour </string>
+    <string name="about_organization_name">l\'Association WDA</string>
+    <string name="about_license_info">Licence : Partage à l\'identique, pas de commercialisation, citer les crédits.</string>
+    <string name="about_read_tutorial_prefix">Lire un </string>
+    <string name="about_tutorial_link_text">tutoriel Wi-Fi</string>
+    <string name="about_on_forum_suffix"> sur le </string>
+    <string name="about_forum_link_text">forum WDA</string>
+    <string name="about_support_association">Si cette application vous est utile, soutenez l\'association :</string>
+    <string name="about_wda_organization_name">Association WDA</string>
+    <string name="about_donations_helloasso">HelloAsso</string>
+    <string name="about_donations_paypal">PayPal</string>
+    <string name="about_donations_info">Infos</string>
+
+    <!-- Changelog -->
+    <string name="changelog_title">Changelog</string>
+    <string-array name="changelog_entries">
+        <item>v0.9: Refactorisation majeure du code pour améliorer la stabilité, la maintenabilité et la traduction.</item>
+        <item>v0.8: Ajout de la balise GPS dans le CSV et intégration d\'un disclaimer.</item>
+        <item>v0.7: Ajout de la création de CSV et enrichissement des informations sur les points d\'accès.</item>
+        <item>v0.6: Ajout de la fonctionnalité d\'auto-connexion. Corrections de bugs.</item>
+        <item>v0.5: Interface initiale. Premières modifications.</item>
+    </string-array>
+
+    <!-- Security Types -->
+    <string name="security_type_wpa3">WPA3-PSK</string>
+    <string name="security_type_wpa2">WPA2-PSK</string>
+    <string name="security_type_wpa">WPA-PSK</string>
+    <string name="security_type_wep">WEP</string>
+    <string name="security_type_open">Ouvert</string>
+
+    <!-- WiFi Standards -->
+    <string name="wifi_standard_legacy">802.11a/b/g</string>
+    <string name="wifi_standard_11n">Wi-Fi 4 (802.11n)</string>
+    <string name="wifi_standard_11ac">Wi-Fi 5 (802.11ac)</string>
+    <string name="wifi_standard_11ax">Wi-Fi 6 (802.11ax)</string>
+
+    <!-- Channel Widths -->
+    <string name="channel_width_20">20 MHz</string>
+    <string name="channel_width_40">40 MHz</string>
+    <string name="channel_width_80">80 MHz</string>
+    <string name="channel_width_160">160 MHz</string>
+    <string name="channel_width_80_80">80+80 MHz</string>
+    <string name="channel_width_320">320 MHz</string>
+
+    <!-- Frequency Bands -->
+    <string name="frequency_band_2_4_ghz">2.4 GHz</string>
+    <string name="frequency_band_5_ghz">5 GHz</string>
+    <string name="frequency_band_6_ghz">6 GHz</string>
+</resources>

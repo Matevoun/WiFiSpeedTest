@@ -2,6 +2,7 @@ package org.wda.wifispeedtest
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
@@ -19,14 +20,19 @@ import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Environment
+import android.os.Looper
 import android.provider.MediaStore
+import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import java.util.Locale
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,11 +40,22 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 
-class WifiViewModel : ViewModel() {
+// Wrapper pour associer un ScanResult à sa localisation et son timestamp.
+data class LocatedScanResult(
+    val scanResult: ScanResult,
+    val location: String?,
+    val wallClockTimestamp: Long
+)
 
+class WifiViewModel(application: Application) : AndroidViewModel(application) {
+
+    // Stocke l'historique complet de tous les scans.
+    private val _allHistoricalScanResults = MutableStateFlow<List<LocatedScanResult>>(emptyList())
+
+    // La liste affichée à l'écran (synthèse des résultats les plus récents/forts).
     private val _scanResults = MutableStateFlow<List<ScanResult>>(emptyList())
     val scanResults: StateFlow<List<ScanResult>> = _scanResults.asStateFlow()
 
@@ -48,118 +65,213 @@ class WifiViewModel : ViewModel() {
     private val _currentBssid = MutableStateFlow<String?>(null)
     val currentBssid: StateFlow<String?> = _currentBssid.asStateFlow()
 
+    private val _currentSsid = MutableStateFlow<String?>(null)
+    val currentSsid: StateFlow<String?> = _currentSsid.asStateFlow()
+
     private val _shareFileEvent = MutableSharedFlow<Uri>()
     val shareFileEvent = _shareFileEvent.asSharedFlow()
 
     private val _showConnectionFailedDialog = MutableStateFlow(false)
-
     val showConnectionFailedDialog: StateFlow<Boolean> = _showConnectionFailedDialog.asStateFlow()
 
-    // Nouveaux : Pour GPS et timestamp (déplacés au niveau class pour accès global, comme un commodat partagé pour tous les scans)
-    private val _currentLocation = MutableStateFlow<String?>(null)  // "lat,lon" ou "N/A" – string pour CSV simple
+    // La localisation du DERNIER scan.
+    private val _currentLocation = MutableStateFlow<String?>(null)
     val currentLocation: StateFlow<String?> = _currentLocation.asStateFlow()
 
-    private val _scanTimestamp = MutableStateFlow<Long?>(null)  // ms depuis epoch, facile à convertir en date
+    // Le timestamp du DERNIER scan.
+    private val _scanTimestamp = MutableStateFlow<Long?>(null)
     val scanTimestamp: StateFlow<Long?> = _scanTimestamp.asStateFlow()
 
-    // Receiver WiFi scan : déclenché par Broadcast, met à jour results et connection (inchangé, juste clean duplicate)
+    private var scanRetryCount = 0
+    private val maxScanRetries = 5
+    private val baseRetryDelayMs = 1000L
+
+    private var scanRetryJob: Job? = null
+
     private val wifiScanReceiver = object : BroadcastReceiver() {
         @Suppress("DEPRECATION")
         override fun onReceive(context: Context, intent: Intent) {
             val success = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-
-            val results = try {
-                @SuppressLint("MissingPermission")
-                if (success) {
-                    wifiManager.scanResults
-                        .filter { !it.SSID.isNullOrBlank() }
-                        .sortedByDescending { it.level }
-                } else {
-                    emptyList()
-                }
-            } catch (e: SecurityException) {
-                Toast.makeText(context, "Accès aux résultats bloqué : ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                emptyList()
-            }
-            
-            _scanResults.update { results }
             _isScanning.update { false }
-            updateCurrentConnectionInfo(context)
+            updateCurrentConnectionInfo()
+
+            if (success) {
+                val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+                try {
+                    @SuppressLint("MissingPermission")
+                    val newScanResults = wifiManager.scanResults
+                    val locationForThisScan = _currentLocation.value
+                    val timestampForThisScan = _scanTimestamp.value ?: System.currentTimeMillis()
+
+                    val newLocatedResults = newScanResults.map {
+                        LocatedScanResult(it, locationForThisScan, timestampForThisScan)
+                    }
+
+                    // Ajoute les nouveaux résultats à la liste historique.
+                    _allHistoricalScanResults.update { currentHistoricalResults ->
+                        currentHistoricalResults + newLocatedResults
+                    }
+
+                    updateDisplayedScanResults(context)
+
+                } catch (e: SecurityException) {
+                    Toast.makeText(context, context.getString(R.string.scan_access_results_failed_toast, e.localizedMessage), Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Log.w("WifiViewModel", "Scan failed, keeping previous results.")
+            }
         }
+    }
+
+    // Met à jour la liste affichée (UI) avec une synthèse des meilleurs signaux.
+    private fun updateDisplayedScanResults(context: Context) {
+        fun ScanResult.hasVisibleSsid(): Boolean {
+            val s = getSsidName(context, this, currentBssid.value, currentSsid.value)
+            return s.isNotBlank() && s != context.getString(R.string.network_hidden_ssid)
+        }
+
+        // Regroupe tout l'historique par BSSID.
+        val groupedByBssid = _allHistoricalScanResults.value.groupBy { it.scanResult.BSSID }
+
+        // Pour chaque BSSID, on ne garde que le résultat avec le meilleur signal pour l'affichage.
+        val representativeResults = groupedByBssid.mapNotNull { (_, results) ->
+            results.maxByOrNull { it.scanResult.level }?.scanResult
+        }
+
+        val processedResults = representativeResults.sortedByDescending { it.level }
+
+        _scanResults.update { processedResults }
     }
 
     fun registerScanReceiver(context: Context) {
         val intentFilter = IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
         try {
-            context.registerReceiver(wifiScanReceiver, intentFilter)
-        } catch (_: Exception) {}
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(wifiScanReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                context.registerReceiver(wifiScanReceiver, intentFilter)
+            }
+        } catch (e: Exception) {
+            Log.e("WifiViewModel", "Error registering scan receiver", e)
+        }
     }
 
     fun unregisterScanReceiver(context: Context) {
         try {
             context.unregisterReceiver(wifiScanReceiver)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e("WifiViewModel", "Error unregistering scan receiver", e)
+        }
     }
-    
-    @Suppress("DEPRECATION")
-    fun startScan(context: Context) {
-        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        
-        val hasLocation = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val hasNearby = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
-        } else true
 
-        if (!hasLocation || !hasNearby) {
-            Toast.makeText(context, if (!hasLocation) "Permission localisation refusée" else "Permission Nearby WiFi refusée", Toast.LENGTH_SHORT).show()
+    fun startScan() {
+        val context = getApplication<Application>()
+        if (scanRetryJob?.isActive == true || _isScanning.value) {
+            Toast.makeText(context, "Scan already in progress.", Toast.LENGTH_SHORT).show()
             return
         }
-        
-        _isScanning.update { true }
 
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val wifiEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        } else {
+            @Suppress("DEPRECATION")
+            (context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager).isWifiEnabled
+        }
+
+        if (!wifiEnabled) {
+            Toast.makeText(context, R.string.scan_wifi_disabled_toast, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        // On lance toute la séquence dans une coroutine.
+        viewModelScope.launch {
+            _isScanning.update { true }
+
+            // Étape 1: Obtenir la localisation et attendre la fin.
+            val location = fetchCurrentLocation()
+            _currentLocation.value = location
+
+            // Étape 2: Démarrer le scan Wi-Fi, seulement après avoir eu la localisation.
+            triggerWifiScan()
+        }
+    }
+
+    private fun triggerWifiScan() {
+        val context = getApplication<Application>()
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        @Suppress("DEPRECATION")
         val success = try {
             @SuppressLint("MissingPermission")
             wifiManager.startScan()
         } catch (e: SecurityException) {
-            Toast.makeText(context, "Scan bloqué : ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.scan_blocked_security_toast, e.localizedMessage), Toast.LENGTH_LONG).show()
             _isScanning.update { false }
+            Log.e("WifiViewModel", "startScan SecurityException", e)
+            false
+        } catch (e: Exception) {
+            Toast.makeText(context, context.getString(R.string.scan_failed_exception_toast, e.localizedMessage), Toast.LENGTH_LONG).show()
+            _isScanning.update { false }
+            Log.e("WifiViewModel", "startScan Exception", e)
             false
         }
 
-        if (!success) {
-            Toast.makeText(context, "Scan échoué (limite système Android)", Toast.LENGTH_SHORT).show()
-            _isScanning.update { false }
+        if (success) {
+            scanRetryJob?.cancel()
+            scanRetryJob = null
+            scanRetryCount = 0
+            _scanTimestamp.value = System.currentTimeMillis()
         } else {
-            _scanTimestamp.value = System.currentTimeMillis()  // Timestamp au succès du scan
-            getCurrentLocation(context)  // GPS one-shot, async – n'alourdit pas
-        }
-    }  // Fin de startScan, clean
+            scanRetryCount++
+            val waitMs = baseRetryDelayMs * (1L shl (scanRetryCount - 1)).coerceAtMost(30)
+            Toast.makeText(context, context.getString(R.string.scan_rejected_toast, waitMs / 1000, scanRetryCount), Toast.LENGTH_LONG).show()
 
-    // Nouvelle : Récup GPS one-shot (Fused pour précision, sans tracking constant)
+            scanRetryJob = viewModelScope.launch {
+                delay(waitMs)
+                if (scanRetryCount <= maxScanRetries) {
+                    Log.i("WifiViewModel", "Retrying wifi scan (attempt $scanRetryCount)")
+                    triggerWifiScan()
+                } else {
+                    Log.w("WifiViewModel", "Max scan retries reached. Aborting further automatic retries.")
+                    scanRetryCount = 0
+                    _isScanning.update { false }
+                }
+            }
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    fun getCurrentLocation(context: Context) {
-        if (!hasLocationPermission(context)) return  // Utilise ton hasLocation de startScan
+    private suspend fun fetchCurrentLocation(): String? {
+        val context = getApplication<Application>()
+        if (!hasLocationPermission(context)) return null
 
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        val currentLocationRequest = CurrentLocationRequest.Builder()  // New API Play 21+ : remplace LocationRequest pour getCurrentLocation (plus précis, no legacy)
-            .setMaxUpdateAgeMillis(0)  // Fallback accurate : 0ms = fresh loc seulement (équiv setWaitForAccurateLocation(false), fixe unresolved si version trolle)
-            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)  // Timeout implicite ~10s ; précis pour scans statiques WDA
-            .build()
 
-        viewModelScope.launch {
-            try {
-                val location: Location? = fusedLocationClient.getCurrentLocation(currentLocationRequest, null).await()  // Nullable car peut fail
-                location?.let {  // Safe call : exécute seulement si non-null
-                    val pos = "${it.latitude},${it.longitude}"  // Properties au lieu de getters Java
-                    _currentLocation.value = pos
-                } ?: run {  // Elvis operator + run : si null, exec ce bloc
-                    _currentLocation.value = "N/A"
-                }
-            } catch (e: Exception) {
-                _currentLocation.value = "N/A"  // Fallback si GPS off ou timeout
-                Toast.makeText(context, "GPS indispo : ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        return try {
+            val location: Location? = withTimeoutOrNull(7000L) { // Timeout de 7 secondes
+                val request = CurrentLocationRequest.Builder()
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .build()
+                fusedLocationClient.getCurrentLocation(request, null).await()
             }
+
+            if (location != null) {
+                "${location.latitude},${location.longitude}"
+            } else {
+                Log.w("WifiViewModel", "Primary location attempt failed, trying last known location.")
+                val lastLocation = withTimeoutOrNull(2000L) { fusedLocationClient.lastLocation.await() }
+                if (lastLocation != null) {
+                    "${lastLocation.latitude},${lastLocation.longitude}"
+                } else {
+                    Log.w("WifiViewModel", "All location attempts failed.")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("WifiViewModel", "Exception while getting location", e)
+            null
         }
     }
 
@@ -172,17 +284,23 @@ class WifiViewModel : ViewModel() {
         }
     }
 
-    fun updateCurrentConnectionInfo(context: Context) {
+    fun updateCurrentConnectionInfo() {
+        val context = getApplication<Application>()
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
         @Suppress("DEPRECATION")
-        val info = try { wifiManager.connectionInfo } catch (_: Exception) { null }
-        
-        val bssid = if (info != null && info.networkId != -1 && !info.bssid.isNullOrBlank()) {
+        val info = wifiManager.connectionInfo
+
+        val bssid = if (info != null && info.networkId != -1 && !info.bssid.isNullOrBlank() && info.bssid != "02:00:00:00:00:00") {
             info.bssid
         } else {
             null
         }
         updateCurrentBssid(bssid)
+
+        // Correction de la syntaxe pour le trim
+        val ssid = info?.ssid?.trim('"')
+        _currentSsid.value = if (ssid == "<unknown ssid>") null else ssid
     }
 
     fun dismissConnectionFailedDialog() {
@@ -190,22 +308,29 @@ class WifiViewModel : ViewModel() {
     }
 
     @SuppressLint("MissingPermission")
-    fun connectToNetwork(context: Context, result: ScanResult, password: String?) {
-        val ssid = result.getSsidName()
+    fun connectToNetwork(result: ScanResult, password: String?) {
+        val context = getApplication<Application>()
+        val ssid = getSsidName(context, result, currentBssid.value, currentSsid.value)
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        val specifier = WifiNetworkSpecifier.Builder()
-            .setSsid(ssid)
-            .apply {
-                if (!password.isNullOrEmpty()) {
-                    if (result.capabilities.contains("WPA3", ignoreCase = true)) {
-                        setWpa3Passphrase(password)
-                    } else {
-                        setWpa2Passphrase(password)
-                    }
+        val specifierBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            WifiNetworkSpecifier.Builder().setSsid(ssid)
+        } else {
+            Toast.makeText(context, "Connection method not supported on this Android version.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!password.isNullOrEmpty()) {
+            try {
+                if (result.capabilities.contains("WPA3", ignoreCase = true) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    specifierBuilder.setWpa3Passphrase(password)
+                } else {
+                    specifierBuilder.setWpa2Passphrase(password)
                 }
-            }
-            .build()
+            } catch (_: Exception) {}
+        }
+
+        val specifier = specifierBuilder.build()
 
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -214,98 +339,97 @@ class WifiViewModel : ViewModel() {
 
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                Toast.makeText(context, "Connecté automatiquement à $ssid !", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.network_connected_toast, ssid), Toast.LENGTH_LONG).show()
                 connectivityManager.bindProcessToNetwork(network)
             }
-
-            override fun onUnavailable() {
-                _showConnectionFailedDialog.value = true
-            }
+            override fun onUnavailable() { _showConnectionFailedDialog.value = true }
         }
 
         try {
             connectivityManager.requestNetwork(request, callback)
-            Toast.makeText(context, "Tentative de connexion automatique…", Toast.LENGTH_SHORT).show()
-        } catch (_: Exception) {
+            Toast.makeText(context, R.string.network_connecting_toast, Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
             _showConnectionFailedDialog.value = true
+            Log.e("WifiViewModel", "requestNetwork failed", e)
         }
     }
 
-    fun exportToCsvAndShare(context: Context, results: List<ScanResult>) {
-        if (results.isEmpty()) {
-            Toast.makeText(context, "Aucun réseau à exporter", Toast.LENGTH_SHORT).show()
+    fun cancelScanRetries() {
+        scanRetryJob?.cancel()
+        scanRetryJob = null
+        scanRetryCount = 0
+        _isScanning.update { false }
+        Log.i("WifiViewModel", "cancelScanRetries called")
+    }
+
+    fun exportToCsvAndShare() {
+        val historicalResults = _allHistoricalScanResults.value
+        val context = getApplication<Application>()
+        if (historicalResults.isEmpty()) {
+            Toast.makeText(context, R.string.export_no_results_toast, Toast.LENGTH_SHORT).show()
             return
         }
+        generateAndShareCsv(historicalResults)
+    }
 
-        val csvContent = buildString {
-            append("Timestamp (ms),Latitude,Longitude,SSID,BSSID,Frequence (MHz),Canal,Puissance (dBm),Securite,Bande,Standard,Distance (m)\n")
-            results.forEach { r ->
-                val isConnected = r.BSSID.equals(currentBssid.value, ignoreCase = true)
-                val prefix = if (isConnected) "✓ " else ""
-                val ssidName = r.getSsidName().replace("\"", "\"\"")
-                val ssid = "\"$prefix$ssidName\""
-
-                val freq = r.frequency
-                val channel = getChannelFromFrequency(freq)
-                val security = getSecurityType(r)
-                val band = buildString {
-                    val ghz = when (freq) {
-                        in 2400..2500 -> "2.4 GHz"
-                        in 5000..6000 -> "5 GHz"
-                        in 5955..7115 -> "6 GHz"
-                        else -> "Inconnu"
-                    }
-                    append(ghz)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        val width = when (r.channelWidth) {
-                            ScanResult.CHANNEL_WIDTH_20MHZ -> "20 MHz"
-                            ScanResult.CHANNEL_WIDTH_40MHZ -> "40 MHz"
-                            ScanResult.CHANNEL_WIDTH_80MHZ -> "80 MHz"
-                            ScanResult.CHANNEL_WIDTH_160MHZ -> "160 MHz"
-                            ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> "80+80 MHz"
-                            ScanResult.CHANNEL_WIDTH_320MHZ -> "320 MHz"
-                            else -> "Inconnu"
-                        }
-                        append(" ($width)")
-                    }
-                }
-                val standard =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) getWifiStandard(r.wifiStandard) else "N/A"
-                val distance = getApproximateDistance(r.level, freq)
-                val timestamp = scanTimestamp.value?.toString() ?: "N/A"
-                val position = currentLocation.value ?: "N/A,N/A"  // Format "lat,lon" ou "N/A,N/A" pour 2 colonnes
-                append("$timestamp,$position,$ssid,${r.BSSID},$freq,$channel,${r.level},$security,$band,$standard,${String.format(Locale.US, "%.1f", distance)}\n")
-            }
-        }
-
+    private fun generateAndShareCsv(historicalResults: List<LocatedScanResult>) {
+        val context = getApplication<Application>()
         viewModelScope.launch {
             try {
+                val csvContent = buildString {
+                    append("Timestamp (ms),Latitude,Longitude,SSID,BSSID,Frequence (MHz),Canal,Puissance (dBm),Securite,Bande,Standard,Distance (m),Connecte\n")
+                    historicalResults.forEach { locatedResult ->
+                        val r = locatedResult.scanResult
+                        val isConnected = r.BSSID.equals(currentBssid.value, ignoreCase = true)
+                        
+                        var ssidName = getSsidName(context, r, currentBssid.value, currentSsid.value)
+                        ssidName = ssidName.replace("\"", "\"\"")
+                        val ssid = "\"$ssidName\""
+                        
+                        val freq = r.frequency
+                        val channel = getChannelFromFrequency(freq)
+                        val security = getSecurityType(context, r)
+                        val band = buildString {
+                            val ghz = getBandFromFrequency(context, freq)
+                            append(ghz)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                val width = getChannelWidthText(context, r.channelWidth)
+                                if (width.isNotEmpty()) append(" ($width)")
+                            }
+                        }
+                        val standard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) getWifiStandard(context, r.wifiStandard) else context.getString(R.string.not_applicable)
+                        val distance = getApproximateDistance(r.level, freq)
+                        
+                        val timestamp = locatedResult.wallClockTimestamp
+                        val positionRaw = locatedResult.location
+                        val positionCols = if (positionRaw.isNullOrBlank() || !positionRaw.contains(",")) {
+                            Pair(context.getString(R.string.not_applicable), context.getString(R.string.not_applicable))
+                        } else {
+                            val parts = positionRaw.split(",")
+                            Pair(parts.getOrNull(0)?.trim() ?: "", parts.getOrNull(1)?.trim() ?: "")
+                        }
+
+                        append("$timestamp,${positionCols.first},${positionCols.second},$ssid,${r.BSSID},$freq,$channel,${r.level},$security,$band,$standard,${String.format(Locale.US, "%.1f", distance)},${if (isConnected) "OUI" else "NON"}\n")
+                    }
+                }
+
                 val resolver = context.contentResolver
                 val contentValues = ContentValues().apply {
-                    put(
-                        MediaStore.MediaColumns.DISPLAY_NAME,
-                        "wifi_scan_${System.currentTimeMillis()}.csv"
-                    )
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, "wifi_scan_${System.currentTimeMillis()}.csv")
                     put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                 }
-
                 val uri = resolver.insert(MediaStore.Files.getContentUri("external"), contentValues)
                 if (uri == null) {
-                    Toast.makeText(context, "Échec de la création du fichier", Toast.LENGTH_LONG)
-                        .show()
+                    Toast.makeText(context, R.string.export_creating_file_failed, Toast.LENGTH_LONG).show()
                     return@launch
                 }
-
-                resolver.openOutputStream(uri)?.use { outputStream ->
-                    outputStream.write(csvContent.toByteArray(Charsets.UTF_8))
-                }
-
-                Toast.makeText(context, "Exporté dans Téléchargements", Toast.LENGTH_LONG).show()
+                resolver.openOutputStream(uri)?.use { it.write(csvContent.toByteArray(Charsets.UTF_8)) }
+                Toast.makeText(context, R.string.export_success_toast, Toast.LENGTH_LONG).show()
                 _shareFileEvent.emit(uri)
-
             } catch (e: Exception) {
-                Toast.makeText(context, "Échec export : ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.export_failed_toast, e.message), Toast.LENGTH_LONG).show()
+                Log.e("WifiViewModel", "Error exporting to CSV", e)
             }
         }
     }
