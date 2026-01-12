@@ -111,10 +111,10 @@ fun CreditsDialog(
                     Text(stringResource(id = R.string.about_support_association), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { uriHandler.openUri("https://www.helloasso.com/associations/association-wda") }) {
+                        TextButton(onClick = { uriHandler.openUri("https://www.helloasso.com/associations/association-wda/formulaires/1") }) {
                             Text(stringResource(id = R.string.about_donations_helloasso))
                         }
-                        TextButton(onClick = { uriHandler.openUri("https://paypal.me/wdassos?country.x=FR&locale.x=fr_FR") }) {
+                        TextButton(onClick = { uriHandler.openUri("https://www.paypal.com/donate/?hosted_button_id=DZRY58WUANTAJ") }) {
                             Text(stringResource(id = R.string.about_donations_paypal))
                         }
                         TextButton(onClick = { uriHandler.openUri("https://wda-fr.org/index.php?page=help") }) {

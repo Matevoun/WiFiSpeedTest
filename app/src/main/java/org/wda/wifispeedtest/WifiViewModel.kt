@@ -30,6 +30,8 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -377,7 +379,7 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val csvContent = buildString {
-                    append("Timestamp (ms),Latitude,Longitude,SSID,BSSID,Frequence (MHz),Canal,Puissance (dBm),Securite,Bande,Standard,Distance (m),Connecte\n")
+                    append("DateTime,Timestamp (ms),Latitude,Longitude,SSID,BSSID,Frequence (MHz),Canal,Puissance (dBm),Securite,Bande,Standard,Distance (m),Connecte\n")
                     historicalResults.forEach { locatedResult ->
                         val r = locatedResult.scanResult
                         val isConnected = r.BSSID.equals(currentBssid.value, ignoreCase = true)
@@ -401,6 +403,14 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
                         val distance = getApproximateDistance(r.level, freq)
                         
                         val timestamp = locatedResult.wallClockTimestamp
+                        val dateTime = try {
+                            val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.FRENCH)
+                            val netDate = Date(timestamp)
+                            sdf.format(netDate)
+                        } catch (e: Exception) {
+                            "N/A"
+                        }
+                        
                         val positionRaw = locatedResult.location
                         val positionCols = if (positionRaw.isNullOrBlank() || !positionRaw.contains(",")) {
                             Pair(context.getString(R.string.not_applicable), context.getString(R.string.not_applicable))
@@ -409,7 +419,7 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
                             Pair(parts.getOrNull(0)?.trim() ?: "", parts.getOrNull(1)?.trim() ?: "")
                         }
 
-                        append("$timestamp,${positionCols.first},${positionCols.second},$ssid,${r.BSSID},$freq,$channel,${r.level},$security,$band,$standard,${String.format(Locale.US, "%.1f", distance)},${if (isConnected) "OUI" else "NON"}\n")
+                        append("$dateTime,$timestamp,${positionCols.first},${positionCols.second},$ssid,${r.BSSID},$freq,$channel,${r.level},$security,$band,$standard,${String.format(Locale.US, "%.1f", distance)},${if (isConnected) "OUI" else "NON"}\n")
                     }
                 }
 

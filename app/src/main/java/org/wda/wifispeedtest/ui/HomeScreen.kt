@@ -60,7 +60,7 @@ fun HomeScreen() {
             // Ligne compacte pour les crédits
             val compactCredits = buildAnnotatedString {
                 append(stringResource(id = R.string.about_developed_by))
-                pushStringAnnotation(tag = "dev_url", annotation = "https://mathieu.charreyre.net")
+                pushLink(link = androidx.compose.ui.text.LinkAnnotation.Url(url = "https://mathieu.charreyre.net"))
                 withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
                     append(" ")
                     append(stringResource(id = R.string.about_developer_name))
@@ -69,7 +69,7 @@ fun HomeScreen() {
                 append(" ")
                 append(stringResource(id = R.string.about_for_organization))
                 append(" ")
-                pushStringAnnotation(tag = "wda_url", annotation = "https://wda-fr.org")
+                pushLink(link = androidx.compose.ui.text.LinkAnnotation.Url(url = "https://wda-fr.org"))
                 withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
                     append(stringResource(id = R.string.about_wda_organization_name))
                 }
@@ -81,8 +81,7 @@ fun HomeScreen() {
                 style = MaterialTheme.typography.bodySmall.copy(
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                ),
-                onTextLayout = {},
+                )
             )
             // Ligne compacte pour le don
             Row(
@@ -95,12 +94,12 @@ fun HomeScreen() {
                 )
 
                 // Button HelloAsso
-                TextButton(onClick = { uriHandler.openUri("https://www.helloasso.com/associations/association-wda") }) {
+                TextButton(onClick = { uriHandler.openUri("https://www.helloasso.com/associations/association-wda/formulaires/1") }) {
                     Text(stringResource(id = R.string.about_donations_helloasso), style = MaterialTheme.typography.bodySmall)
                 }
 
                 // Button PayPal
-                TextButton(onClick = { uriHandler.openUri("https://paypal.me/wdassos?country.x=FR&locale.x=fr_FR") }) {
+                TextButton(onClick = { uriHandler.openUri("https://www.paypal.com/donate/?hosted_button_id=DZRY58WUANTAJ") }) {
                     Text(stringResource(id = R.string.about_donations_paypal), style = MaterialTheme.typography.bodySmall)
                 }
 

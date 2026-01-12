@@ -1,6 +1,6 @@
 # Fichier d'instructions pour l'IA
 
-*Dernière mise à jour : 28/05/2024*
+*Dernière mise à jour : 29/05/2024*
 
 ## Règles de Collaboration avec l'IA (IMPORTANT)
 
@@ -18,6 +18,8 @@
 
 ## Incidents et Leçons Apprises
 
+*   **29/05/2024** : L'IA a utilisé le composable `ClickableText` qui est déprécié, générant des avertissements de compilation.
+    *   **Leçon** : Toujours utiliser l'approche moderne pour les textes cliquables : utiliser le composable `Text` standard avec une `AnnotatedString` contenant une `LinkAnnotation`. Cette méthode est pérenne et évite les avertissements.
 *   **28/05/2024** : L'IA a commis plusieurs erreurs de syntaxe successives en modifiant `WifiViewModel.kt`, notamment en gérant mal l'échappement des caractères spéciaux. Cela a provoqué des échecs de compilation en cascade.
     *   **Leçon** : Rigueur extrême requise sur la syntaxe. Chaque modification, même mineure, doit être vérifiée avec une attention particulière pour éviter de corrompre les fichiers.
 *   **27/05/2024** : L'IA a modifié le fichier `WifiViewModel.kt` sans autorisation préalable en tentant de corriger une API dépréciée.
