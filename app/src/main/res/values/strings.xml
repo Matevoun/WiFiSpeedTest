@@ -21,6 +21,7 @@
     <string name="action_about">About</string>
     <string name="action_support">Support:</string>
     <string name="action_more_info">More info</string>
+    <string name="close_app_button">Close</string>
 
     <!-- Network & Connection -->
     <string name="network_connecting_to">Connecting to %1$s</string>
@@ -118,4 +119,10 @@
     <string name="frequency_band_2_4_ghz">2.4 GHz</string>
     <string name="frequency_band_5_ghz">5 GHz</string>
     <string name="frequency_band_6_ghz">6 GHz</string>
+    
+    <!-- Close App Dialog -->
+    <string name="close_app_dialog_title">Close the application?</string>
+    <string name="close_app_dialog_message">All scan data not exported will be permanently lost. Do you really want to quit?</string>
+    <string name="close_app_dialog_confirm">Quit</string>
+    <string name="close_app_dialog_cancel">Cancel</string>
 </resources>

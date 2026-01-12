@@ -20,6 +20,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -48,7 +49,11 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import android.net.wifi.ScanResult
+import androidx.compose.foundation.layout.Arrangement
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import org.wda.wifispeedtest.ui.ConnectionDialog
 import org.wda.wifispeedtest.ui.CreditsDialog
 import org.wda.wifispeedtest.ui.HomeScreen
@@ -73,6 +78,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        viewModel.closeAppEvent
+            .onEach { finish() }
+            .launchIn(lifecycleScope)
 
         setContent {
             MaterialTheme {
@@ -148,6 +157,7 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
     val currentBssid by viewModel.currentBssid.collectAsStateWithLifecycle()
     val currentSsid by viewModel.currentSsid.collectAsStateWithLifecycle()
     val showConnectionFailedDialog by viewModel.showConnectionFailedDialog.collectAsStateWithLifecycle()
+    val showCloseAppDialog by viewModel.showCloseAppDialog.collectAsStateWithLifecycle()
     val currentLocation by viewModel.currentLocation.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val mainActivity = context as? MainActivity
@@ -202,6 +212,24 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissConnectionFailedDialog() }) {
                     Text(stringResource(id = R.string.action_cancel))
+                }
+            }
+        )
+    }
+    
+    if (showCloseAppDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissCloseAppDialog() },
+            title = { Text(stringResource(R.string.close_app_dialog_title)) },
+            text = { Text(stringResource(R.string.close_app_dialog_message)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmCloseApp() }) {
+                    Text(stringResource(R.string.close_app_dialog_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissCloseAppDialog() }) {
+                    Text(stringResource(R.string.close_app_dialog_cancel))
                 }
             }
         )
@@ -295,35 +323,42 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
 
     Scaffold(
         bottomBar = {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .navigationBarsPadding()
+                    .navigationBarsPadding(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // Bouton "À lire" — à gauche
                 FloatingActionButton(
                     onClick = { showCreditsDialog.value = true },
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    modifier = Modifier.align(Alignment.CenterStart)
                 ) {
                     Text(stringResource(id = R.string.action_about), modifier = Modifier.padding(8.dp))
                 }
 
-                // Bouton CSV — centré exactement
+                // Bouton CSV
                 FloatingActionButton(
                     onClick = { viewModel.exportToCsvAndShare() },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.align(Alignment.Center)
                 ) {
                     Text(stringResource(id = R.string.action_export_csv), modifier = Modifier.padding(16.dp))
+                }
+                
+                // Bouton Fermer
+                FloatingActionButton(
+                    onClick = { viewModel.requestCloseApp() },
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(stringResource(id = R.string.close_app_button), modifier = Modifier.padding(16.dp))
                 }
 
                 // Bouton Scanner — à droite
                 FloatingActionButton(
                     onClick = { if (!isScanning) startScan() },
                     containerColor = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.align(Alignment.CenterEnd)
                 ) {
                     Text(stringResource(id = R.string.action_scan), modifier = Modifier.padding(16.dp))
                 }

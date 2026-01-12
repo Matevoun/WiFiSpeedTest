@@ -75,6 +75,12 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _showConnectionFailedDialog = MutableStateFlow(false)
     val showConnectionFailedDialog: StateFlow<Boolean> = _showConnectionFailedDialog.asStateFlow()
+    
+    private val _showCloseAppDialog = MutableStateFlow(false)
+    val showCloseAppDialog: StateFlow<Boolean> = _showCloseAppDialog.asStateFlow()
+
+    private val _closeAppEvent = MutableSharedFlow<Unit>()
+    val closeAppEvent = _closeAppEvent.asSharedFlow()
 
     // La localisation du DERNIER scan.
     private val _currentLocation = MutableStateFlow<String?>(null)
@@ -191,6 +197,9 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isScanning.update { true }
 
+            // Réinitialise la localisation pour forcer la mise à jour de l'UI
+            _currentLocation.value = null
+
             // Étape 1: Obtenir la localisation et attendre la fin.
             val location = fetchCurrentLocation()
             _currentLocation.value = location
@@ -300,7 +309,6 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
         }
         updateCurrentBssid(bssid)
 
-        // Correction de la syntaxe pour le trim
         val ssid = info?.ssid?.trim('"')
         _currentSsid.value = if (ssid == "<unknown ssid>") null else ssid
     }
@@ -354,6 +362,21 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
             _showConnectionFailedDialog.value = true
             Log.e("WifiViewModel", "requestNetwork failed", e)
         }
+    }
+    
+    fun requestCloseApp() {
+        _showCloseAppDialog.value = true
+    }
+
+    fun confirmCloseApp() {
+        viewModelScope.launch {
+            _closeAppEvent.emit(Unit)
+        }
+        _showCloseAppDialog.value = false
+    }
+
+    fun dismissCloseAppDialog() {
+        _showCloseAppDialog.value = false
     }
 
     fun cancelScanRetries() {
