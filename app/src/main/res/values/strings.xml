@@ -52,6 +52,7 @@
     <string name="scan_blocked_security_toast">Scan blocked (SecurityException): %1$s</string>
     <string name="scan_failed_exception_toast">Scan failed (exception): %1$s</string>
     <string name="scan_access_results_failed_toast">Access to results blocked: %1$s</string>
+    <string name="scan_already_in_progress_toast">Scan already in progress.</string>
 
     <!-- Export -->
     <string name="export_no_results_toast">No networks to export</string>

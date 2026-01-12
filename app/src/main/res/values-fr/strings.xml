@@ -52,6 +52,7 @@
     <string name="scan_blocked_security_toast">Scan bloqué (SecurityException) : %1$s</string>
     <string name="scan_failed_exception_toast">Scan échoué (exception) : %1$s</string>
     <string name="scan_access_results_failed_toast">Accès aux résultats bloqué : %1$s</string>
+    <string name="scan_already_in_progress_toast">Scan déjà en cours.</string>
 
     <!-- Export -->
     <string name="export_no_results_toast">Aucun réseau à exporter</string>
@@ -121,7 +122,7 @@
     <string name="frequency_band_6_ghz">6 GHz</string>
 
     <!-- Close App Dialog -->
-    <string name="close_app_dialog_title">Fermer WiFi SpeedTest ?</string>
+    <string name="close_app_dialog_title">Fermer l\'application ?</string>
     <string name="close_app_dialog_message">Toutes les données de scan non exportées seront définitivement perdues. Voulez-vous vraiment quitter ?</string>
     <string name="close_app_dialog_confirm">Quitter</string>
     <string name="close_app_dialog_cancel">Annuler</string>

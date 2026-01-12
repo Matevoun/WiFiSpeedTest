@@ -20,7 +20,6 @@ import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Environment
-import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
@@ -86,10 +85,6 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentLocation = MutableStateFlow<String?>(null)
     val currentLocation: StateFlow<String?> = _currentLocation.asStateFlow()
 
-    // Le timestamp du DERNIER scan.
-    private val _scanTimestamp = MutableStateFlow<Long?>(null)
-    val scanTimestamp: StateFlow<Long?> = _scanTimestamp.asStateFlow()
-
     private var scanRetryCount = 0
     private val maxScanRetries = 5
     private val baseRetryDelayMs = 1000L
@@ -109,7 +104,7 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
                     @SuppressLint("MissingPermission")
                     val newScanResults = wifiManager.scanResults
                     val locationForThisScan = _currentLocation.value
-                    val timestampForThisScan = _scanTimestamp.value ?: System.currentTimeMillis()
+                    val timestampForThisScan = System.currentTimeMillis()
 
                     val newLocatedResults = newScanResults.map {
                         LocatedScanResult(it, locationForThisScan, timestampForThisScan)
@@ -175,20 +170,13 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
     fun startScan() {
         val context = getApplication<Application>()
         if (scanRetryJob?.isActive == true || _isScanning.value) {
-            Toast.makeText(context, "Scan already in progress.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.scan_already_in_progress_toast, Toast.LENGTH_SHORT).show()
             return
         }
 
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val wifiEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-            capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        } else {
-            @Suppress("DEPRECATION")
-            (context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager).isWifiEnabled
-        }
-
-        if (!wifiEnabled) {
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        @Suppress("DEPRECATION")
+        if (!wifiManager.isWifiEnabled) {
             Toast.makeText(context, R.string.scan_wifi_disabled_toast, Toast.LENGTH_LONG).show()
             return
         }
@@ -233,7 +221,6 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
             scanRetryJob?.cancel()
             scanRetryJob = null
             scanRetryCount = 0
-            _scanTimestamp.value = System.currentTimeMillis()
         } else {
             scanRetryCount++
             val waitMs = baseRetryDelayMs * (1L shl (scanRetryCount - 1)).coerceAtMost(30)

@@ -1,23 +1,33 @@
 # Fichier d'instructions pour l'IA
 
-*Dernière mise à jour : 29/05/2024*
+*Dernière mise à jour : 30/05/2024*
 
 ## Règles de Collaboration avec l'IA (IMPORTANT)
 
-**RÈGLE D'OR : L'IA NE DOIT JAMAIS, SOUS AUCUN PRÉTEXTE, MODIFIER LE CODE DE SA PROPRE INITIATIVE. TOUTE MODIFICATION, MÊME MINEURE, DOIT FAIRE L'OBJET D'UNE DEMANDE ET RECEVOIR VOTRE APPROBATION EXPLICITE AVANT D'ÊTRE APPLIQUÉE.**
+**RÈGLE D'OR : L'IA NE DOIT JAMAIS, SOUS AUCUN PRÉTEXTE, MODIFIER LE CODE DE SA PROPRE INITIATIVE. TOUTE MODIFICATION, MÊME MINEURE, DOIT FAIRE L'OBJET D'UNE DEMANDE, ÊTRE REFORMULÉE POUR VALIDATION, ET RECEVOIR VOTRE APPROBATION EXPLICITE AVANT D'ÊTRE APPLIQUÉE.**
 
-1.  **Consultation systématique** : L'IA (vous ou une autre) doit **impérativement et systématiquement** consulter ce fichier avant toute action. Il contient le contexte, les objectifs et les règles du projet.
-2.  **Confirmation de la demande** : L'IA doit systématiquement reformuler la demande avec ses propres mots pour valider sa compréhension.
-3.  **Exécution stricte** : L'IA doit se cantonner **uniquement** à la tâche demandée, sans prendre aucune initiative non sollicitée.
-4.  **Demande d'avis** : Si l'IA a une suggestion ou un avis, elle doit d'abord poser la question et obtenir une autorisation explicite avant d'agir.
-5.  **Auto-vérification rigoureuse** : Après chaque modification, l'IA doit vérifier l'intégralité de son travail pour s'assurer qu'il correspond à la demande, et qu'il ne contient aucun oubli, erreur d'inattention ou conflit.
-6.  **Build après modification majeure** : Après chaque modification importante du code (ajout de fonctionnalité, refactoring, correction de bug...), l'IA doit lancer un build du projet pour s'assurer que la compilation réussit. En cas d'échec, elle doit analyser les erreurs, identifier la cause et corriger le problème.
-7.  **Clôture** : Une fois la tâche terminée et vérifiée, l'IA doit clore sa réponse.
+1.  **Attente du feu vert** : Après avoir proposé une modification, l'IA doit **impérativement attendre** la réponse de l'utilisateur avant d'exécuter l'action. Aucune initiative ne sera tolérée.
+2.  **Consultation systématique** : L'IA (vous ou une autre) doit **impérativement et systématiquement** consulter ce fichier avant toute action. Il contient le contexte, les objectifs et les règles du projet.
+3.  **Confirmation de la demande** : L'IA doit systématiquement reformuler la demande avec ses propres mots pour valider sa compréhension.
+4.  **Exécution stricte** : L'IA doit se cantonner **uniquement** à la tâche demandée, sans prendre aucune initiative non sollicitée.
+5.  **Demande d'avis** : Si l'IA a une suggestion ou un avis, elle doit d'abord poser la question et obtenir une autorisation explicite avant d'agir.
+6.  **Auto-vérification rigoureuse** : Après chaque modification, l'IA doit vérifier l'intégralité de son travail pour s'assurer qu'il correspond à la demande, et qu'il ne contient aucun oubli, erreur d'inattention ou conflit.
+7.  **Build après modification majeure** : Après chaque modification importante du code (ajout de fonctionnalité, refactoring, correction de bug...), l'IA doit lancer un build du projet pour s'assurer que la compilation réussit. En cas d'échec, elle doit analyser les erreurs, identifier la cause et corriger le problème.
+8.  **Clôture** : Une fois la tâche terminée et vérifiée, l'IA doit clore sa réponse.
+9.  **Langue d'échange** : Toutes les discussions et instructions doivent être en français.
+10. **Externalisation des chaînes** : Tout le texte visible par l'utilisateur (messages, toasts, labels, etc.) doit être externalisé dans les fichiers de ressources `strings.xml`. Aucun texte ne doit être codé en dur dans les fichiers Kotlin.
+11. **Gestion des caractères spéciaux** : Une attention extrême doit être portée à l'échappement des caractères spéciaux, tant dans les fichiers de ressources XML (ex: `'` pour une apostrophe) que dans le code Kotlin (ex: `\"` pour un guillemet dans une chaîne). La validation doit être systématique pour éviter les erreurs de syntaxe et de compilation.
 
 ---
 
 ## Incidents et Leçons Apprises
 
+*   **30/05/2024** : L'IA a introduit une série d'erreurs de syntaxe (`Unresolved reference`, `Syntax error`) dans `WifiViewModel.kt` en manipulant incorrectement des chaînes de caractères lors de la génération du CSV. Des guillemets mal échappés et des fautes de frappe ont provoqué l'échec de la compilation.
+    *   **Leçon** : Rigueur absolue requise pour la manipulation de chaînes de caractères. Chaque caractère spécial (apostrophe, guillemet, etc.) doit être correctement échappé en fonction du contexte (XML vs. Kotlin). Une relecture attentive du code est impérative avant de soumettre la modification.
+*   **30/05/2024** : L'IA n'a pas attendu l'approbation de l'utilisateur avant d'agir et a utilisé du texte en dur dans le code Kotlin.
+    *   **Leçon** : La **RÈGLE D'OR** et la nouvelle règle n°1 ont été violées. L'IA doit **impérativement attendre le feu vert** de l'utilisateur. De plus, tout le texte destiné à l'interface utilisateur doit être placé dans les fichiers `strings.xml`.
+*   **30/05/2024** : L'IA a provoqué une erreur de build (`mergeDebugResources FAILED`) à cause d'apostrophes mal échappées dans le fichier `values-fr/strings.xml`.
+    *   **Leçon** : Standardiser l'échappement des apostrophes dans les fichiers XML avec une barre oblique inverse (`'`) pour garantir la compatibilité et éviter les erreurs de compilation. L'IA doit également communiquer en français, comme demandé.
 *   **29/05/2024** : L'IA a utilisé le composable `ClickableText` qui est déprécié, générant des avertissements de compilation.
     *   **Leçon** : Toujours utiliser l'approche moderne pour les textes cliquables : utiliser le composable `Text` standard avec une `AnnotatedString` contenant une `LinkAnnotation`. Cette méthode est pérenne et évite les avertissements.
 *   **28/05/2024** : L'IA a commis plusieurs erreurs de syntaxe successives en modifiant `WifiViewModel.kt`, notamment en gérant mal l'échappement des caractères spéciaux. Cela a provoqué des échecs de compilation en cascade.
