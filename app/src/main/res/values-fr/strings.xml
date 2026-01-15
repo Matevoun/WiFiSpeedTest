@@ -21,6 +21,7 @@
     <string name="action_about">À propos</string>
     <string name="action_support">Soutenir :</string>
     <string name="action_more_info">Plus d\'infos</string>
+    <string name="action_show_changelog">Voir l\'historique des versions</string>
     <string name="close_app_button">Fermer</string>
 
     <!-- Network & Connection -->

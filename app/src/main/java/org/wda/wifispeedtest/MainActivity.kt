@@ -54,6 +54,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.wda.wifispeedtest.ui.ChangelogDialog
 import org.wda.wifispeedtest.ui.ConnectionDialog
 import org.wda.wifispeedtest.ui.CreditsDialog
 import org.wda.wifispeedtest.ui.HomeScreen
@@ -163,7 +164,8 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
     val mainActivity = context as? MainActivity
     var resultToShowDialog by remember { mutableStateOf<ScanResult?>(null) }
     var showLocationTemporarily by remember { mutableStateOf<String?>(null) }
-    val showCreditsDialog = remember { mutableStateOf(false) }  // déclaration
+    val showCreditsDialog = remember { mutableStateOf(false) }
+    val showChangelogDialog = remember { mutableStateOf(false) }  // Nouvel état
 
     // Effet pour afficher les coordonnées quand elles sont mises à jour
     LaunchedEffect(currentLocation) {
@@ -188,10 +190,20 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
         }
     }
 
-    // Appel du dialog séparé : state lu via param, changes via callback
+    val showChangelog = {
+        showCreditsDialog.value = false
+        showChangelogDialog.value = true
+    }
+
     CreditsDialog(
-        show = showCreditsDialog.value,      // lecture via .value
-        onDismiss = { showCreditsDialog.value = false }  // écriture via .value
+        show = showCreditsDialog.value,
+        onDismiss = { showCreditsDialog.value = false },
+        onShowChangelog = showChangelog
+    )
+
+    ChangelogDialog(
+        show = showChangelogDialog.value,
+        onDismiss = { showChangelogDialog.value = false }
     )
 
     if (showConnectionFailedDialog) {
@@ -370,7 +382,18 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            // Affichage temporaire des coordonnées GPS
+            // Le contenu principal (liste ou écran d'accueil) est dessiné en premier
+            when {
+                scanResults.isEmpty() && !isScanning -> HomeScreen(onShowChangelog = showChangelog)
+                else -> ScanResultsScreen(
+                    scanResults = scanResults,
+                    currentBssid = currentBssid,
+                    currentSsid = currentSsid,
+                    onItemClick = { resultToShowDialog = it }
+                )
+            }
+
+            // Le message GPS et la roue sont dessinés par-dessus
             showLocationTemporarily?.let { locationText ->
                 Text(
                     text = locationText,
@@ -390,16 +413,7 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 )
             }
 
-            when {
-                scanResults.isEmpty() && !isScanning -> HomeScreen()
-                else -> ScanResultsScreen(
-                    scanResults = scanResults,
-                    currentBssid = currentBssid,
-                    currentSsid = currentSsid,
-                    onItemClick = { resultToShowDialog = it }
-                )
-            }
-
+            // Le dialogue de connexion est aussi dessiné par-dessus
             resultToShowDialog?.let { result ->
                 ConnectionDialog(
                     result = result,

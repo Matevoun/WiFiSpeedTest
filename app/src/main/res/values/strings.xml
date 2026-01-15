@@ -21,6 +21,7 @@
     <string name="action_about">About</string>
     <string name="action_support">Support:</string>
     <string name="action_more_info">More info</string>
+    <string name="action_show_changelog">View version history</string>
     <string name="close_app_button">Close</string>
 
     <!-- Network & Connection -->

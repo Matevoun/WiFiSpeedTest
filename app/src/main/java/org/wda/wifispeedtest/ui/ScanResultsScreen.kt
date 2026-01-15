@@ -89,16 +89,17 @@ fun WifiInfoItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCurrentlyConnected)
-                getSignalColor(result.level).copy(alpha = 0.92f)
-            else
+            containerColor = if (isCurrentlyConnected) {
                 getSignalColor(result.level)
+            } else {
+                getSignalColor(result.level).copy(alpha = 0.6f)
+            }
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -110,52 +111,54 @@ fun WifiInfoItem(
                     Text(
                         text = ssid,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
+                        fontSize = 18.sp
                     )
                     if (isCurrentlyConnected) {
-                        Text(stringResource(id = R.string.network_status_connected_symbol), fontSize = 26.sp, modifier = Modifier.padding(start = 10.dp))
+                        Text(stringResource(id = R.string.network_status_connected_symbol), fontSize = 24.sp, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
-                Text(stringResource(id = R.string.network_action_details_symbol), fontSize = 28.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(start = 16.dp))
+                Text(stringResource(id = R.string.network_action_details_symbol), fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.padding(start = 12.dp))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            Spacer(modifier = Modifier.height(4.dp))
+
+            val detailFontSize = 13.sp
 
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_power)) }
                 append("${result.level} dBm")
-            })
+            }, fontSize = detailFontSize)
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_mac)) }
                 append(result.BSSID)
-            })
+            }, fontSize = detailFontSize)
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_channel)) }
                 val channel = getChannelFromFrequency(result.frequency)
                 append(if (channel > 0) "$channel" else stringResource(id = R.string.unknown))
-            })
+            }, fontSize = detailFontSize)
             // Nouvelle : Bande de fréquence (2.4/5/6 GHz)
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_band)) }
                 append(getBandAndWidth(context, result))  // Combo GHz (MHz) : un seul champ, clean et complet
-            })
+            }, fontSize = detailFontSize)
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_security)) }
                 append(getSecurityType(context, result))
-            })
+            }, fontSize = detailFontSize)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Text(buildAnnotatedString {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_wifi_standard)) }
                     append(getWifiStandard(context, result.wifiStandard))
-                })
+                }, fontSize = detailFontSize)
             }
             Text(buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_distance)) }
                 val distance = getApproximateDistance(result.level, result.frequency)
                 append(if (distance > 100) stringResource(id = R.string.network_info_distance_over_100) else stringResource(id = R.string.network_info_distance_value).format(distance))
-            })
+            }, fontSize = detailFontSize)
         }
     }
 }

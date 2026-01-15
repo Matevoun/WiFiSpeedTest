@@ -1,12 +1,13 @@
 package org.wda.wifispeedtest.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -15,11 +16,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -30,15 +31,16 @@ import org.wda.wifispeedtest.R
  *
  * @param show True pour afficher la boîte de dialogue, false pour la cacher.
  * @param onDismiss La fonction à appeler pour fermer la boîte de dialogue.
+ * @param onShowChangelog La fonction à appeler pour afficher l'historique des versions.
  */
 @Composable
 fun CreditsDialog(
     show: Boolean,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onShowChangelog: () -> Unit
 ) {
     if (!show) return
 
-    val changelogEntries = stringArrayResource(id = R.array.changelog_entries)
     val uriHandler = LocalUriHandler.current
 
     AlertDialog(
@@ -100,10 +102,17 @@ fun CreditsDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(stringResource(id = R.string.changelog_title), fontWeight = FontWeight.Bold)
-                changelogEntries.forEach {
-                    Text(it)
-                }
+                // Lien pour afficher le changelog
+                Text(
+                    text = stringResource(id = R.string.action_show_changelog),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onShowChangelog() },
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    textDecoration = TextDecoration.Underline
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 

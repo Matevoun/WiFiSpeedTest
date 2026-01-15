@@ -1,6 +1,6 @@
 # Fichier d'instructions pour l'IA
 
-*Dernière mise à jour : 30/05/2024*
+*Dernière mise à jour : 31/05/2024*
 
 ## Règles de Collaboration avec l'IA (IMPORTANT)
 
@@ -16,18 +16,20 @@
 8.  **Clôture** : Une fois la tâche terminée et vérifiée, l'IA doit clore sa réponse.
 9.  **Langue d'échange** : Toutes les discussions et instructions doivent être en français.
 10. **Externalisation des chaînes** : Tout le texte visible par l'utilisateur (messages, toasts, labels, etc.) doit être externalisé dans les fichiers de ressources `strings.xml`. Aucun texte ne doit être codé en dur dans les fichiers Kotlin.
-11. **Gestion des caractères spéciaux** : Une attention extrême doit être portée à l'échappement des caractères spéciaux, tant dans les fichiers de ressources XML (ex: `'` pour une apostrophe) que dans le code Kotlin (ex: `\"` pour un guillemet dans une chaîne). La validation doit être systématique pour éviter les erreurs de syntaxe et de compilation.
+11. **Gestion des caractères spéciaux** : Une attention extrême doit être portée à l'échappement des caractères spéciaux, tant dans les fichiers de ressources XML (ex: `\'` pour une apostrophe) que dans le code Kotlin (ex: `\"` pour un guillemet dans une chaîne). La validation doit être systématique pour éviter les erreurs de syntaxe et de compilation.
 
 ---
 
 ## Incidents et Leçons Apprises
 
+*   **31/05/2024** : L'IA a proposé de manière erronée de cacher la liste des APs pendant le chargement, ce qui allait à l'encontre de la demande de l'utilisateur qui souhaitait simplement superposer les indicateurs.
+    *   **Leçon** : Rigueur dans la compréhension de la demande. La reformulation doit être précise et refléter l'intention, pas seulement une interprétation technique. Ne jamais proposer une solution qui dégrade la fonctionnalité principale.
 *   **30/05/2024** : L'IA a introduit une série d'erreurs de syntaxe (`Unresolved reference`, `Syntax error`) dans `WifiViewModel.kt` en manipulant incorrectement des chaînes de caractères lors de la génération du CSV. Des guillemets mal échappés et des fautes de frappe ont provoqué l'échec de la compilation.
     *   **Leçon** : Rigueur absolue requise pour la manipulation de chaînes de caractères. Chaque caractère spécial (apostrophe, guillemet, etc.) doit être correctement échappé en fonction du contexte (XML vs. Kotlin). Une relecture attentive du code est impérative avant de soumettre la modification.
 *   **30/05/2024** : L'IA n'a pas attendu l'approbation de l'utilisateur avant d'agir et a utilisé du texte en dur dans le code Kotlin.
     *   **Leçon** : La **RÈGLE D'OR** et la nouvelle règle n°1 ont été violées. L'IA doit **impérativement attendre le feu vert** de l'utilisateur. De plus, tout le texte destiné à l'interface utilisateur doit être placé dans les fichiers `strings.xml`.
 *   **30/05/2024** : L'IA a provoqué une erreur de build (`mergeDebugResources FAILED`) à cause d'apostrophes mal échappées dans le fichier `values-fr/strings.xml`.
-    *   **Leçon** : Standardiser l'échappement des apostrophes dans les fichiers XML avec une barre oblique inverse (`'`) pour garantir la compatibilité et éviter les erreurs de compilation. L'IA doit également communiquer en français, comme demandé.
+    *   **Leçon** : Standardiser l'échappement des apostrophes dans les fichiers XML avec une barre oblique inverse (`\'`) pour garantir la compatibilité et éviter les erreurs de compilation. L'IA doit également communiquer en français, comme demandé.
 *   **29/05/2024** : L'IA a utilisé le composable `ClickableText` qui est déprécié, générant des avertissements de compilation.
     *   **Leçon** : Toujours utiliser l'approche moderne pour les textes cliquables : utiliser le composable `Text` standard avec une `AnnotatedString` contenant une `LinkAnnotation`. Cette méthode est pérenne et évite les avertissements.
 *   **28/05/2024** : L'IA a commis plusieurs erreurs de syntaxe successives en modifiant `WifiViewModel.kt`, notamment en gérant mal l'échappement des caractères spéciaux. Cela a provoqué des échecs de compilation en cascade.
@@ -86,7 +88,23 @@ L'application "WiFi Speed Test" doit répondre aux exigences fonctionnelles suiv
 
 L'historique des versions est maintenu dans `strings.xml` (`changelog_entries`).
 
-## Modifications Effectuées (v0.9.2 - en cours)
+## Modifications Effectuées
+
+### v0.9.3 (en cours)
+
+1.  **Amélioration de l'ergonomie et de la lisibilité de l'interface** :
+    *   **Problème** : L'affichage était trop dense et l'AP connecté ne se démarquait pas assez.
+    *   **Solution** : Réduction des marges et de la taille des polices dans la liste des APs (`ScanResultsScreen.kt`). Pour mieux identifier l'AP connecté, tous les autres APs sont maintenant affichés avec une transparence de 60%, faisant ressortir l'AP actif par contraste.
+
+2.  **Correction de la superposition des calques UI** :
+    *   **Problème** : La roue de chargement et le message des coordonnées GPS apparaissaient sous la liste des résultats de scan.
+    *   **Solution** : L'ordre de rendu dans `MainActivity.kt` a été corrigé pour que la liste des APs soit dessinée en premier, garantissant que la roue de chargement et le message GPS s'affichent toujours au premier plan.
+
+3.  **Refonte de l'accès au Changelog** :
+    *   **Problème** : Le changelog était enfoui dans la fenêtre "À propos", le rendant peu accessible.
+    *   **Solution** : Le changelog a été extrait dans sa propre fenêtre modale (`ChangelogDialog.kt`). Un lien a été ajouté sur l'écran d'accueil (`HomeScreen.kt`) et dans la fenêtre "À propos" (`CreditsDialog.kt`) pour l'afficher.
+
+### v0.9.2
 
 1.  **Fiabilisation de la collecte de données** :
     *   **Problème** : Des scans trop rapides provoquaient une erreur système (throttling), ce qui entraînait une perte de toutes les données collectées.

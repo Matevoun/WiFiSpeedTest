@@ -13,8 +13,8 @@ android {
         applicationId = "org.wda.wifispeedtest"
         minSdk = 29
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.9.2"
+        versionCode = 6
+        versionName = "0.9.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
