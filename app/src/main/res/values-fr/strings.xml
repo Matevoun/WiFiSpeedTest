@@ -64,6 +64,8 @@
     <!-- Location -->
     <string name="location_unavailable_toast">GPS indisponible : %1$s</string>
     <string name="location_display_prefix">GPS : </string>
+    <string name="location_settings_not_enabled">La localisation doit être activée pour lancer un scan.</string>
+    <string name="location_check_failed">Échec de la vérification des paramètres de localisation.</string>
 
     <!-- Misc -->
     <string name="unknown">Inconnu</string>
@@ -89,7 +91,7 @@
     <!-- Changelog -->
     <string name="changelog_title">Changelog</string>
     <string-array name="changelog_entries">
-        <item>v0.9: Refactorisation majeure du code pour améliorer la stabilité, la maintenabilité et la traduction.</item>
+        <item>v0.9: Refactorisation majeure, ajout d\'une fenêtre de détails au clic sur un AP, stabilité, maintenabilité et traduction.</item>
         <item>v0.8: Ajout de la balise GPS dans le CSV et intégration d\'un disclaimer.</item>
         <item>v0.7: Ajout de la création de CSV et enrichissement des informations sur les points d\'accès.</item>
         <item>v0.6: Ajout de la fonctionnalité d\'auto-connexion. Corrections de bugs.</item>

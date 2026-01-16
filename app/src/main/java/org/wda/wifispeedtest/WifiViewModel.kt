@@ -175,8 +175,7 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        @Suppress("DEPRECATION")
-        if (!wifiManager.isWifiEnabled) {
+        if (wifiManager.wifiState != WifiManager.WIFI_STATE_ENABLED) {
             Toast.makeText(context, R.string.scan_wifi_disabled_toast, Toast.LENGTH_LONG).show()
             return
         }
@@ -296,7 +295,7 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
         }
         updateCurrentBssid(bssid)
 
-        val ssid = info?.ssid?.trim('"')
+        val ssid = info?.ssid?.trim('\'')
         _currentSsid.value = if (ssid == "<unknown ssid>") null else ssid
     }
 
@@ -395,8 +394,8 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
                         val isConnected = r.BSSID.equals(currentBssid.value, ignoreCase = true)
                         
                         var ssidName = getSsidName(context, r, currentBssid.value, currentSsid.value)
-                        ssidName = ssidName.replace("\"", "\"\"")
-                        val ssid = "\"$ssidName\""
+                        ssidName = ssidName.replace("\"","\"\"")
+                        val ssid = "\"\"$ssidName\"\""
                         
                         val freq = r.frequency
                         val channel = getChannelFromFrequency(freq)

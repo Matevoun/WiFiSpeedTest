@@ -3,6 +3,9 @@ package org.wda.wifispeedtest
 import android.content.Context
 import android.net.wifi.ScanResult
 import android.os.Build
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -136,4 +139,18 @@ fun getBandAndWidth(context: Context, result: ScanResult): String {
         ""
     }
     return "$band $width".trim()
+}
+
+/**
+ * UI-only helper (renvoie Color Compose).
+ */
+@Composable
+fun getSignalColor(level: Int): Color {
+    return when {
+        level > -55 -> colorResource(id = R.color.signal_strong)
+        level > -65 -> colorResource(id = R.color.signal_good)
+        level > -75 -> colorResource(id = R.color.signal_fair)
+        level > -85 -> colorResource(id = R.color.signal_weak)
+        else -> colorResource(id = R.color.signal_very_weak)
+    }
 }

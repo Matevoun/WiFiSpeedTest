@@ -1,10 +1,11 @@
 package org.wda.wifispeedtest
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -13,12 +14,15 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,24 +45,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.net.wifi.ScanResult
-import androidx.compose.foundation.layout.Arrangement
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import org.wda.wifispeedtest.ui.ApDetailsDialog
 import org.wda.wifispeedtest.ui.ChangelogDialog
 import org.wda.wifispeedtest.ui.ConnectionDialog
 import org.wda.wifispeedtest.ui.CreditsDialog
 import org.wda.wifispeedtest.ui.HomeScreen
 import org.wda.wifispeedtest.ui.ScanResultsScreen
+import android.net.wifi.ScanResult as WifiScanResult
 
 @Suppress("DEPRECATION", "RegExpRedundantEscape")
 class MainActivity : ComponentActivity() {
@@ -136,20 +144,13 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
     val scanResults by viewModel.scanResults.collectAsStateWithLifecycle()
     val isScanning by viewModel.isScanning.collectAsStateWithLifecycle()
 
-    // Minimum d'affichage en ms pour s'assurer que la roue est visible
     val minSpinnerShowMs = 400L
-
-    // État local pour gérer l'affichage stable de la roue (évite les clignotements trop courts)
     var spinnerVisible by remember { mutableStateOf(false) }
 
-    // Garde la roue affichée au moins minSpinnerShowMs après la fin du scan.
-    // Si isScanning passe true -> on affiche immédiatement.
-    // Si isScanning passe false -> on attend minSpinnerShowMs avant de masquer la roue.
     LaunchedEffect(isScanning) {
         if (isScanning) {
             spinnerVisible = true
         } else {
-            // petite attente pour éviter flicker si isScanning a été très court
             delay(minSpinnerShowMs)
             spinnerVisible = false
         }
@@ -162,17 +163,18 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
     val currentLocation by viewModel.currentLocation.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val mainActivity = context as? MainActivity
-    var resultToShowDialog by remember { mutableStateOf<ScanResult?>(null) }
+    var resultToShowDialog by remember { mutableStateOf<WifiScanResult?>(null) }
+    var showApDetailsDialog by remember { mutableStateOf<WifiScanResult?>(null) }
     var showLocationTemporarily by remember { mutableStateOf<String?>(null) }
     val showCreditsDialog = remember { mutableStateOf(false) }
-    val showChangelogDialog = remember { mutableStateOf(false) }  // Nouvel état
+    val showChangelogDialog = remember { mutableStateOf(false) }
+    var shouldCheckLocationSettings by remember { mutableStateOf(false) }
 
-    // Effet pour afficher les coordonnées quand elles sont mises à jour
     LaunchedEffect(currentLocation) {
         currentLocation?.let { loc ->
             if (loc.contains(",")) {
                 showLocationTemporarily = "${context.getString(R.string.location_display_prefix)} $loc"
-                delay(3000) // On affiche pendant 3 secondes
+                delay(3000)
                 showLocationTemporarily = null
             }
         }
@@ -255,11 +257,64 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
 
     val showPermissionDialog = remember { mutableStateOf(false) }
 
+    val locationSettingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.startScan()
+        } else {
+            Toast.makeText(
+                context,
+                context.getString(R.string.location_settings_not_enabled),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+	
+	val actualCheckLocationSettingsAndScan = {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
+
+        val builder = LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+            .setAlwaysShow(true)
+
+        val client = LocationServices.getSettingsClient(context)
+        val task = client.checkLocationSettings(builder.build())
+
+        task.addOnSuccessListener {
+            viewModel.startScan()
+        }
+
+        task.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                try {
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    locationSettingsLauncher.launch(intentSenderRequest)
+                } catch (sendEx: IntentSender.SendIntentException) {
+                    Log.e("WifiScannerApp", "Error launching location settings resolution", sendEx)
+                }
+            } else {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.location_check_failed),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    LaunchedEffect(shouldCheckLocationSettings) {
+        if (shouldCheckLocationSettings) {
+            actualCheckLocationSettingsAndScan()
+            shouldCheckLocationSettings = false // Reset the trigger
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
         if (grants.values.all { it }) {
-            viewModel.startScan()
+            shouldCheckLocationSettings = true
         } else {
             showPermissionDialog.value = true
         }
@@ -286,51 +341,16 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
         )
     }
 
-    val showEnableLocationDialog = remember { mutableStateOf(false) } // <-- nouveau state
-
-    if (showEnableLocationDialog.value) {
-        AlertDialog(
-            onDismissRequest = { showEnableLocationDialog.value = false },
-            title = { Text(stringResource(id = R.string.location_enable_dialog_title)) },
-            text = { Text(stringResource(id = R.string.location_enable_dialog_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showEnableLocationDialog.value = false
-                    viewModel.cancelScanRetries() // assure qu'on annule aussi ici
-                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    context.startActivity(intent)
-                }) { Text(stringResource(id = R.string.action_open_settings)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEnableLocationDialog.value = false }) {
-                    Text(stringResource(id = R.string.action_cancel))
-                }
-            }
-        )
-    }
-
     val startScan = {
         if (mainActivity?.hasAllPermissions(context) == true) {
-            // Vérifier si le service de localisation système est activé
-            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-            val locationEnabled = try {
-                locationManager?.isLocationEnabled == true
-            } catch (_: Exception) {
-                false
-            }
-
-            if (!locationEnabled) {
-                // arrêter les retries en cours (évite le spam pendant que l'utilisateur ouvre les Settings)
-                viewModel.cancelScanRetries()
-                // On demande à l'utilisateur d'activer la localisation système
-                showEnableLocationDialog.value = true
-            } else {
-                viewModel.startScan()
-            }
+            actualCheckLocationSettingsAndScan()
         } else {
             permissionLauncher.launch(permissions)
         }
+    }
+
+    showApDetailsDialog?.let {
+        ApDetailsDialog(result = it, onDismiss = { showApDetailsDialog = null })
     }
 
     Scaffold(
@@ -343,7 +363,6 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Bouton "À lire" — à gauche
                 FloatingActionButton(
                     onClick = { showCreditsDialog.value = true },
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -351,7 +370,6 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                     Text(stringResource(id = R.string.action_about), modifier = Modifier.padding(8.dp))
                 }
 
-                // Bouton CSV
                 FloatingActionButton(
                     onClick = { viewModel.exportToCsvAndShare() },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -359,7 +377,6 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                     Text(stringResource(id = R.string.action_export_csv), modifier = Modifier.padding(16.dp))
                 }
                 
-                // Bouton Fermer
                 FloatingActionButton(
                     onClick = { viewModel.requestCloseApp() },
                     containerColor = MaterialTheme.colorScheme.errorContainer
@@ -367,7 +384,6 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                     Text(stringResource(id = R.string.close_app_button), modifier = Modifier.padding(16.dp))
                 }
 
-                // Bouton Scanner — à droite
                 FloatingActionButton(
                     onClick = { if (!isScanning) startScan() },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -382,18 +398,17 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            // Le contenu principal (liste ou écran d'accueil) est dessiné en premier
             when {
                 scanResults.isEmpty() && !isScanning -> HomeScreen(onShowChangelog = showChangelog)
                 else -> ScanResultsScreen(
                     scanResults = scanResults,
                     currentBssid = currentBssid,
                     currentSsid = currentSsid,
-                    onItemClick = { resultToShowDialog = it }
+                    onItemClick = { resultToShowDialog = it },
+                    onDetailsClick = { showApDetailsDialog = it }
                 )
             }
 
-            // Le message GPS et la roue sont dessinés par-dessus
             showLocationTemporarily?.let { locationText ->
                 Text(
                     text = locationText,
@@ -413,7 +428,6 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 )
             }
 
-            // Le dialogue de connexion est aussi dessiné par-dessus
             resultToShowDialog?.let { result ->
                 ConnectionDialog(
                     result = result,
@@ -431,18 +445,5 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 )
             }
         }
-    }
-}
-
-/**
- * UI-only helper (renvoie Color Compose).
- */
-fun getSignalColor(level: Int): Color {
-    return when {
-        level > -55 -> Color(0xFF4CAF50)
-        level > -65 -> Color(0xFF8BC34A)
-        level > -75 -> Color(0xFFFFC107)
-        level > -85 -> Color(0xFFFF9800)
-        else -> Color(0xFFF44336)
     }
 }

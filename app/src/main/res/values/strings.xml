@@ -64,6 +64,8 @@
     <!-- Location -->
     <string name="location_unavailable_toast">GPS unavailable: %1$s</string>
     <string name="location_display_prefix">GPS: </string>
+    <string name="location_settings_not_enabled">Location has to be enabled to start scanning.</string>
+    <string name="location_check_failed">Failed to check location settings.</string>
 
     <!-- Misc -->
     <string name="unknown">Unknown</string>
@@ -89,7 +91,7 @@
     <!-- Changelog -->
     <string name="changelog_title">Changelog</string>
     <string-array name="changelog_entries">
-        <item>v0.9: Major code refactoring for stability, maintainability and translation.</item>
+        <item>v0.9: Major code refactoring, added details dialog on AP click, stability, maintainability and translation.</item>
         <item>v0.8: Added GPS tag in CSV and disclaimer.</item>
         <item>v0.7: Added CSV creation and enriched access point information.</item>
         <item>v0.6: Added auto-connect feature.</item>

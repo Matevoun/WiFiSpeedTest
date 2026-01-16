@@ -38,19 +38,13 @@ import org.wda.wifispeedtest.getSignalColor
 import org.wda.wifispeedtest.getSsidName
 import org.wda.wifispeedtest.getWifiStandard
 
-/**
- * Affiche la liste des résultats du scan WiFi.
- *
- * @param scanResults La liste des [ScanResult] à afficher.
- * @param currentBssid Le BSSID du réseau actuellement connecté, pour le surligner.
- * @param onItemClick La fonction à appeler lorsqu'un élément de la liste est cliqué.
- */
 @Composable
 fun ScanResultsScreen(
     scanResults: List<ScanResult>,
     currentBssid: String?,
     currentSsid: String?,
-    onItemClick: (ScanResult) -> Unit
+    onItemClick: (ScanResult) -> Unit,
+    onDetailsClick: (ScanResult) -> Unit
 ) {
     LazyColumn(
         state = rememberLazyListState(),
@@ -59,7 +53,8 @@ fun ScanResultsScreen(
         items(scanResults) { result ->
             WifiInfoItem(
                 result = result,
-                onClick = { onItemClick(result) },
+                onConnectClick = { onItemClick(result) },
+                onDetailsClick = { onDetailsClick(result) },
                 currentBssid = currentBssid,
                 currentSsid = currentSsid
             )
@@ -67,17 +62,11 @@ fun ScanResultsScreen(
     }
 }
 
-/**
- * Affiche une carte avec les informations détaillées d'un réseau WiFi.
- *
- * @param result Le [ScanResult] contenant les informations à afficher.
- * @param onClick La fonction à appeler lorsque la carte est cliquée.
- * @param currentBssid Le BSSID du réseau actuellement connecté.
- */
 @Composable
 fun WifiInfoItem(
     result: ScanResult,
-    onClick: () -> Unit,
+    onConnectClick: () -> Unit,
+    onDetailsClick: () -> Unit,
     currentBssid: String?,
     currentSsid: String?
 ) {
@@ -89,8 +78,7 @@ fun WifiInfoItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clickable(onClick = onClick),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isCurrentlyConnected) {
                 getSignalColor(result.level)
@@ -101,7 +89,9 @@ fun WifiInfoItem(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onConnectClick),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
@@ -124,41 +114,42 @@ fun WifiInfoItem(
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
             Spacer(modifier = Modifier.height(4.dp))
 
-            val detailFontSize = 13.sp
+            Column(modifier = Modifier.clickable(onClick = onDetailsClick)) {
+                val detailFontSize = 13.sp
 
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_power)) }
-                append("${result.level} dBm")
-            }, fontSize = detailFontSize)
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_mac)) }
-                append(result.BSSID)
-            }, fontSize = detailFontSize)
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_channel)) }
-                val channel = getChannelFromFrequency(result.frequency)
-                append(if (channel > 0) "$channel" else stringResource(id = R.string.unknown))
-            }, fontSize = detailFontSize)
-            // Nouvelle : Bande de fréquence (2.4/5/6 GHz)
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_band)) }
-                append(getBandAndWidth(context, result))  // Combo GHz (MHz) : un seul champ, clean et complet
-            }, fontSize = detailFontSize)
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_security)) }
-                append(getSecurityType(context, result))
-            }, fontSize = detailFontSize)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Text(buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_wifi_standard)) }
-                    append(getWifiStandard(context, result.wifiStandard))
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_power)) }
+                    append(" ${result.level} dBm")
+                }, fontSize = detailFontSize)
+                Text(buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_mac)) }
+                    append(" ${result.BSSID}")
+                }, fontSize = detailFontSize)
+                Text(buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_channel)) }
+                    val channel = getChannelFromFrequency(result.frequency)
+                    append(if (channel > 0) " $channel" else " ${stringResource(id = R.string.unknown)}")
+                }, fontSize = detailFontSize)
+                Text(buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_band)) }
+                    append(" ${getBandAndWidth(context, result)}")
+                }, fontSize = detailFontSize)
+                Text(buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_security)) }
+                    append(" ${getSecurityType(context, result)}")
+                }, fontSize = detailFontSize)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    Text(buildAnnotatedString {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_wifi_standard)) }
+                        append(" ${getWifiStandard(context, result.wifiStandard)}")
+                    }, fontSize = detailFontSize)
+                }
+                Text(buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_distance)) }
+                    val distance = getApproximateDistance(result.level, result.frequency)
+                    append(if (distance > 100) " ${stringResource(id = R.string.network_info_distance_over_100)}" else " ${stringResource(id = R.string.network_info_distance_value).format(distance)}")
                 }, fontSize = detailFontSize)
             }
-            Text(buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(id = R.string.network_info_distance)) }
-                val distance = getApproximateDistance(result.level, result.frequency)
-                append(if (distance > 100) stringResource(id = R.string.network_info_distance_over_100) else stringResource(id = R.string.network_info_distance_value).format(distance))
-            }, fontSize = detailFontSize)
         }
     }
 }

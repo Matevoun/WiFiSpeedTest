@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <color name="signal_strong">#FF4CAF50</color>
+    <color name="signal_good">#FF8BC34A</color>
+    <color name="signal_fair">#FFFFC107</color>
+    <color name="signal_weak">#FFFF9800</color>
+    <color name="signal_very_weak">#FFF44336</color>
 </resources>
