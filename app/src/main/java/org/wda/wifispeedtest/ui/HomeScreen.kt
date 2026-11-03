@@ -91,12 +91,19 @@ fun HomeScreen(onShowChangelog: () -> Unit) {
                     append(stringResource(id = R.string.about_wda_organization_name))
                 }
                 pop()
-                append(" (CC BY-NC-SA)")
             }
             Text(
                 text = compactCredits,
                 style = MaterialTheme.typography.bodySmall.copy(
                     textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            )
+            Text(
+                text = stringResource(R.string.about_license_short),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodySmall.copy(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             )

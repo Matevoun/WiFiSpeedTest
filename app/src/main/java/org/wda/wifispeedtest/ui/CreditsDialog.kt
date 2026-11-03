@@ -3,7 +3,7 @@ package org.wda.wifispeedtest.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +24,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import org.wda.wifispeedtest.R
 
 /**
@@ -37,9 +41,33 @@ import org.wda.wifispeedtest.R
 fun CreditsDialog(
     show: Boolean,
     onDismiss: () -> Unit,
-    onShowChangelog: () -> Unit
+    onShowChangelog: () -> Unit,
+    onDeleteExports: () -> Unit
 ) {
     if (!show) return
+
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.delete_exports_dialog_title)) },
+            text = { Text(stringResource(R.string.delete_exports_dialog_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    onDeleteExports()
+                }) {
+                    Text(stringResource(R.string.delete_exports_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
 
     val uriHandler = LocalUriHandler.current
 
@@ -116,19 +144,51 @@ fun CreditsDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                TextButton(
+                    onClick = { confirmDelete = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(R.string.action_delete_exports),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Column {
                     Text(stringResource(id = R.string.about_support_association), style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
                         TextButton(onClick = { uriHandler.openUri("https://www.helloasso.com/associations/association-wda/formulaires/1") }) {
-                            Text(stringResource(id = R.string.about_donations_helloasso))
+                            Text(
+                                stringResource(id = R.string.about_donations_helloasso),
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                         TextButton(onClick = { uriHandler.openUri("https://www.paypal.com/donate/?hosted_button_id=DZRY58WUANTAJ") }) {
-                            Text(stringResource(id = R.string.about_donations_paypal))
+                            Text(
+                                stringResource(id = R.string.about_donations_paypal),
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
-                        TextButton(onClick = { uriHandler.openUri("https://wda-fr.org/index.php?page=help") }) {
-                            Text(stringResource(id = R.string.about_donations_info))
-                        }
+                    }
+                    TextButton(
+                        onClick = { uriHandler.openUri("https://wda-fr.org/index.php?page=help") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(id = R.string.about_donations_info))
+                    }
+                    TextButton(
+                        onClick = { uriHandler.openUri("https://wda-fr.org/index.php?page=Apps/wifi-speed-test") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(id = R.string.about_privacy))
                     }
                 }
             }

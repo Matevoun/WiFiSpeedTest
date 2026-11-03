@@ -65,8 +65,10 @@ fun getSsidName(
         @Suppress("DEPRECATION")
         result.SSID
     })?.trim('"')
+        ?.filter { it >= ' ' && it != '\u007F' }
+        ?.trim()
 
-    // Fonction interne pour valider un SSID
+    // Un nom vide, ou fait seulement de nuls, n'est pas un SSID.
     fun isValidSsid(ssid: String?): Boolean {
         return !ssid.isNullOrBlank() && ssid != "<unknown ssid>"
     }
@@ -78,7 +80,10 @@ fun getSsidName(
 
     // Sinon, c'est un réseau masqué ou le SSID est invalide.
     // On vérifie si c'est le réseau actuel pour utiliser le nom de la connexion.
-    val cleanedCurrentSsid = currentSsid?.trim('"')
+    val cleanedCurrentSsid = currentSsid
+        ?.trim('"')
+        ?.filter { it >= ' ' && it != '\u007F' }
+        ?.trim()
     if (result.BSSID.equals(currentBssid, ignoreCase = true) && isValidSsid(cleanedCurrentSsid)) {
         return cleanedCurrentSsid!!
     }

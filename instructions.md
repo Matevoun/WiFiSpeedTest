@@ -1,6 +1,6 @@
 # Fichier d'instructions pour l'IA
 
-*Dernière mise à jour : 02/06/2024*
+*Dernière mise à jour : 31/10/2026*
 
 ## Règles de Collaboration avec l'IA (IMPORTANT)
 
@@ -18,6 +18,9 @@
 10.  **Langue d'échange** : Toutes les discussions et instructions doivent être en français.
 11. **Externalisation des chaînes** : Tout le texte visible par l'utilisateur (messages, toasts, labels, etc.) doit être externalisé dans les fichiers de ressources `strings.xml`. Aucun texte ne doit être codé en dur dans les fichiers Kotlin.
 12. **Gestion des caractères spéciaux** : Une attention extrême doit être portée à l'échappement des caractères spéciaux, tant dans les fichiers de ressources XML (ex: `\'` pour une apostrophe) que dans le code Kotlin (ex: `\"` pour un guillemet dans une chaîne). La validation doit être systématique pour éviter les erreurs de syntaxe et de compilation.
+13. **Pas de tutoiement** : Aucun « tu », « toi », « ton » ni « chez toi » dans le texte visible. Pas d'impératif en « -ez ». Préférer l'infinitif (« Enregistrer ») ou une phrase sans personne.
+14. **Majuscule après un deux-points** : « 2,4 GHz : Canal 11 ».
+15. **Jamais de personnalisation** : Pas de SSID, de prénom, de lieu ni d'adresse en dur. L'application est générale. Tout ce qui dépend du réseau se calcule au scan.
 
 ---
 
@@ -65,11 +68,11 @@ L'application "WiFi Speed Test" doit répondre aux exigences fonctionnelles suiv
 
 -   **Scan et affichage** : Afficher une liste de tous les points d'accès (APs) Wi-Fi captés par le terminal lors d'un scan manuel déclenché par l'utilisateur.
 -   **Identification des réseaux** : Récupérer et afficher les noms (SSID) de tous les réseaux détectés.
--   **Classement par puissance** : La liste des réseaux affichée doit être une synthèse triée par puissance de signal reçu (RSSI), du plus fort au plus faible, en ne montrant que la meilleure détection pour chaque AP.
--   **Visualisation de la puissance** : La couleur de chaque élément de la liste doit refléter la qualité du signal (par exemple, du vert pour un signal fort au rouge pour un signal faible).
+-   **Classement par puissance** : La liste affichée montre, pour chaque BSSID, le dernier relevé de la session, trié par RSSI du plus fort au plus faible. Ce n'est pas le record historique. L'export CSV conserve chaque relevé.
+-   **Visualisation de la puissance** : Chaque borne est une carte blanche. Le nom reste grand. Une jauge sur toute la largeur se remplit de -90 dBm (vide) à -30 dBm (pleine) et prend la couleur du signal. Une troisième ligne résume le dBm, le canal, la bande et la sécurité. Le fond de la carte ne change pas. La fiche détaillée s'ouvre au tap.
 -   **Identification de la connexion active** : Un logo "Check" (✓) doit apparaître distinctement à côté du SSID auquel le terminal est actuellement connecté.
 -   **Agrégation des données (Mode Cartographie)** : Conserver en mémoire **l'intégralité des données de chaque scan**, sans jamais écraser les résultats précédents. Chaque détection d'un AP doit être ajoutée comme une nouvelle entrée historique.
--   **Persistance des données de session** : Les données agrégées ne doivent pas être effacées tant que l'application n'est pas explicitement fermée par l'utilisateur.
+-   **Persistance des données de session** : Les données restent en mémoire jusqu'à « Nouveau relevé », ou jusqu'à la fermeture de l'application.
 -   **Exportation des données complètes** : Permettre à l'utilisateur d'exporter à tout moment l'**ensemble des données historiques collectées** dans un fichier au format CSV via un bouton dédié. Ce fichier doit contenir, pour chaque détection, le timestamp, les coordonnées GPS du moment, et toutes les caractéristiques de l'AP.
 
 
@@ -102,7 +105,7 @@ L'application "WiFi Speed Test" doit répondre aux exigences fonctionnelles suiv
 -   `ui/`: **Package contenant tous les écrans et composants Jetpack Compose.**
     -   `ScanResultsScreen.kt`: Affiche la **liste des résultats** de scan.
     -   `HomeScreen.kt`: Affiche l'**écran d'accueil** lorsque aucun scan n'a encore été effectué.
-    -   `CreditsDialog.kt`, `ChangelogDialog.kt`, `ConnectionDialog.kt`: Fenêtres modales.
+    -   `CreditsDialog.kt`, `ChangelogDialog.kt`, `ApDetailsDialog.kt`: Fenêtres modales. `ConnectionDialog.kt` a été supprimé en 0.9.6.
 -   `res/`: **Répertoire des ressources.**
     -   `values/strings.xml`: **Toutes les chaînes de caractères** visibles par l'utilisateur.
     -   `values/colors.xml`: **Toutes les couleurs** de l'application.
@@ -114,7 +117,55 @@ L'historique des versions est maintenu dans `strings.xml` (`changelog_entries`).
 
 ## Modifications Effectuées
 
-### v0.9.4 (en cours)
+### v0.9.7 (03/11/2026)
+
+1. **Page Canaux** : A droite de la liste. Même scan. Glisser, ou toucher « Canaux ».
+2. **Aucune personnalisation** : Toutes les bornes comptent. Pas de réseau « à soi » en dur.
+3. **Bandes** : 2,4 GHz, 5 GHz et 6 GHz. Une bande n'apparaît que si une borne y est détectée. Une ligne par bande. Seul le nom de la bande est en gras.
+4. **Couleur d'un canal** : Selon la borne la plus forte. Vert : calme. Jaune, puis orange, puis rouge : chargé. Le vert de la liste veut dire l'inverse : bien reçu.
+5. **2,4 GHz** : Les canaux 1 à 13 sont toujours dessinés, vides compris. La bande est courte et les canaux se chevauchent. Le conseil choisit le moins encombré parmi ces 13, pas seulement parmi 1, 6 et 11. Le 14 n'apparaît que s'il est entendu.
+6. **5 GHz** : Le dessin ne montre que les canaux entendus, sinon la règle serait immense. Le conseil parcourt tous les canaux de 20 MHz de la bande, même ceux qui ne sont pas dessinés.
+7. **6 GHz** : Même règle. La section n'apparaît que si une borne est détectée.
+8. **Image** : En bas de la page. L'encart est enregistré avec la date du scan et le GPS, puis proposé au partage. Les boutons autour n'en font pas partie.
+9. **Arrière-plan** : L'écoute du scan n'est plus coupée quand l'application passe derrière une autre. Elle est retirée seulement à la fermeture. Sans résultat au bout de 20 secondes, la roue s'arrête et rien n'est ajouté au CSV.
+10. **Graphique** : Plus de légende. Deux lignes : « Scan effectué le : » et « GPS : ». Conseil sur une ligne : « 2,4 GHz : Canal 1 moins encombré. » L'image contient toutes les bandes, pas seulement la partie visible.
+11. **Exports** : « Effacer les exports » dans À propos. Confirmation, puis suppression des seuls `wifi_scan_*.csv` et `wifi_channels_*.png` créés par l'application.
+12. **Accueil** : La licence est seule, centrée, sous la ligne de crédit.
+13. **Cible** : compileSdk et targetSdk 37. Vérifié sur Android 17.
+
+### v0.9.6 (31/10/2026)
+
+1. **Liste** : Les blocs verts sont remplacés par une carte blanche de trois lignes, avec une jauge de -90 dBm à -30 dBm.
+2. **Flèche** : Supprimée, ainsi que la fenêtre de mot de passe et `connectToNetwork`. L'appli ne connecte pas le téléphone.
+3. **Réglages Wi-Fi** : Bouton en haut de la liste. Il ouvre l'écran Wi-Fi d'Android.
+4. **Nouveau relevé** : Vide la mémoire après confirmation, sans fermer l'appli. Les CSV déjà exportés restent. Chaque export était déjà un fichier distinct. Le GPS reste celui du scan, pas celui de l'export.
+5. **Haut de liste** : GPS et roue au-dessus des boutons, plus par-dessus. « Réglages Wi-Fi » et « Nouveau relevé » sont côte à côte.
+6. **Carte** : « ... » signale la fiche. La distance est sur la troisième ligne.
+7. **Réseau caché** : Italique et grisé.
+8. **Nouveau relevé** : Vide la mémoire et relance un scan. L'accueil ne revient pas.
+9. **Boutons du haut** : Même forme que ceux du bas. « Param. Wi-Fi » a la couleur de CSV, « Nouveau relevé » celle de Scanner.
+10. **Borne connectée** : Fond teinté. Pas d'animation.
+
+### v0.9.5 (31/10/2026)
+
+1. **Guillemets CSV** : Le SSID était écrit `""nom""`. Un seul couple de guillemets, les guillemets internes restant doublés.
+2. **Colonne Connecte** : Figée dans `LocatedScanResult` à l'arrivée du scan. Avant, elle était recalculée à l'export avec la connexion du moment.
+3. **Écran** : Dernier relevé par BSSID, et non plus le pic de la session. Le CSV ne change pas : une ligne par détection.
+4. **Vérifié le jour même** : Android Studio Rabbit 2, JDK 25, wrapper Gradle passé de 9.1.0 à 9.8.2 à 11:50. `BUILD SUCCESSFUL`. APK debug installé à la main (désinstallation puis WhatsApp). Scan de 12:04 cohérent.
+5. **Canaux** : Entre 10:41 et 12:04, les deux nœuds Riton+ ont changé de canal. Fait à la main par Mathieu, pas un bug. Livebox-CF63 n'a pas bougé. Le BSSID `62:45:b9:35:8a:c2` reste un réseau caché annoncé WEP, standard inconnu.
+6. **À propos** : « Infos » passait à la ligne au milieu du mot. Les trois liens sont dans un `FlowRow`.
+7. **Barre du bas** : « Scanner » était coupé en `Scann` / `er`. Marge des boutons ramenée à 8 dp, une seule ligne.
+8. **Changelog** : Le texte 0.9.5 est raccourci pour le public.
+9. **SSID illisible** : Un nom composé seulement d'octets nuls était écrit tel quel dans le CSV. Il s'affiche maintenant « Réseau caché », comme un SSID vide. Pas de changement de version.
+
+Non traité, à ne pas « corriger » sans demande :
+- La connexion depuis l'appli a été retirée en 0.9.6. Ne pas la remettre sans demande.
+- La distance reste un modèle en espace libre (environ 13 dBm), fausse à bout portant.
+- Sécurité incomplète (RSN, OWE, WPA3 mixte) et pas de Wi-Fi 7 (`WIFI_STANDARD_11BE`).
+- L'historique meurt avec le process.
+- Avertissement Gradle : API dépréciées, incompatibles avec Gradle 10. Vient des plugins. Pas de passage à Gradle 10, pas de configuration cache.
+
+### v0.9.4
 
 1.  **Ajout d'une fenêtre de détails pour les APs** :
     *   **Problème** : Il n'était pas possible de voir les détails d'un AP sans tenter de s'y connecter.

@@ -42,7 +42,7 @@
     <string name="network_info_distance">Distance :</string>
     <string name="network_info_distance_value">~%.1f m</string>
     <string name="network_info_distance_over_100">&gt;100 m</string>
-    <string name="network_hidden_ssid"><i>Réseau caché</i></string>
+    <string name="network_hidden_ssid">Réseau caché</string>
     <string name="network_status_connected_symbol">✓</string>
     <string name="network_action_details_symbol">›</string>
 
@@ -87,15 +87,19 @@
     <string name="about_donations_helloasso">HelloAsso</string>
     <string name="about_donations_paypal">PayPal</string>
     <string name="about_donations_info">Infos</string>
+    <string name="about_privacy">Confidentialité</string>
 
     <!-- Changelog -->
     <string name="changelog_title">Changelog</string>
     <string-array name="changelog_entries">
-        <item>v0.9: Refactorisation majeure, ajout d\'une fenêtre de détails au clic sur un AP, stabilité, maintenabilité et traduction.</item>
-        <item>v0.8: Ajout de la balise GPS dans le CSV et intégration d\'un disclaimer.</item>
-        <item>v0.7: Ajout de la création de CSV et enrichissement des informations sur les points d\'accès.</item>
-        <item>v0.6: Ajout de la fonctionnalité d\'auto-connexion. Corrections de bugs.</item>
-        <item>v0.5: Interface initiale. Premières modifications.</item>
+        <item>v0.9.7 : Page Canaux, pour choisir une fréquence moins occupée.</item>
+        <item>v0.9.6 : Liste des réseaux plus lisible, et nouveau relevé.</item>
+        <item>v0.9.5 : Export CSV et liste des réseaux corrigés.</item>
+        <item>v0.9 : Refactorisation majeure, ajout d\'une fenêtre de détails au clic sur un AP, stabilité, maintenabilité et traduction.</item>
+        <item>v0.8 : Ajout de la balise GPS dans le CSV et intégration d\'un disclaimer.</item>
+        <item>v0.7 : Ajout de la création de CSV et enrichissement des informations sur les points d\'accès.</item>
+        <item>v0.6 : Ajout de la fonctionnalité d\'auto-connexion. Corrections de bugs.</item>
+        <item>v0.5 : Interface initiale. Premières modifications.</item>
     </string-array>
 
     <!-- Security Types -->
@@ -123,6 +127,38 @@
     <string name="frequency_band_2_4_ghz">2.4 GHz</string>
     <string name="frequency_band_5_ghz">5 GHz</string>
     <string name="frequency_band_6_ghz">6 GHz</string>
+
+    <string name="action_open_wifi_settings">Param. Wi-Fi</string>
+    <string name="action_new_survey">Nouveau relevé</string>
+    <string name="new_survey_dialog_title">Nouveau relevé ?</string>
+    <string name="new_survey_dialog_message">Le relevé en cours sera effacé de la mémoire. Les CSV déjà exportés restent dans Téléchargements.</string>
+    <string name="new_survey_dialog_confirm">Effacer</string>
+    <string name="network_list_summary">%1$d dBm · %2$s · canal %3$s · %4$s · %5$s</string>
+    <string name="network_more_symbol">...</string>
+    <string name="page_networks">Réseaux</string>
+    <string name="page_channels">Canaux</string>
+    <string name="channels_band_24">2,4 GHz :</string>
+    <string name="channels_band_5">5 GHz :</string>
+    <string name="channels_band_6">6 GHz :</string>
+    <string name="channels_advice_rest">Canal %1$d moins encombré.</string>
+    <string name="channels_advice_empty_one">Canal %1$s vide.</string>
+    <string name="channels_advice_empty_many">Canaux %1$s vides.</string>
+    <string name="channels_range">%1$d à %2$d</string>
+    <string name="channels_list_last">%1$s et %2$s</string>
+    <string name="channels_save_image">Exporter le graphique</string>
+    <string name="channels_saved_toast">Graphique enregistré dans Images</string>
+    <string name="channels_save_failed">Échec de l\'enregistrement.</string>
+    <string name="channels_gps_unavailable">Indisponible</string>
+    <string name="channels_scan_date">Scan effectué le :</string>
+    <string name="channels_scan_gps">GPS :</string>
+    <string name="about_license_short">(CC BY-NC-SA)</string>
+    <string name="action_delete_exports">Effacer les exports</string>
+    <string name="delete_exports_dialog_title">Supprimer les fichiers ?</string>
+    <string name="delete_exports_dialog_message">Cette action supprime définitivement les CSV et les graphiques enregistrés par l\'application. Les autres fichiers du téléphone ne sont pas touchés.</string>
+    <string name="delete_exports_confirm">Supprimer</string>
+    <string name="delete_exports_done">Fichiers supprimés.</string>
+    <string name="delete_exports_none">Aucun fichier à supprimer.</string>
+    <string name="action_share_image_title">Partager l\'image</string>
 
     <!-- Close App Dialog -->
     <string name="close_app_dialog_title">Fermer l\'application ?</string>

@@ -42,7 +42,7 @@
     <string name="network_info_distance">Distance:</string>
     <string name="network_info_distance_value">~%.1f m</string>
     <string name="network_info_distance_over_100">&gt;100 m</string>
-    <string name="network_hidden_ssid"><i>Hidden Network</i></string>
+    <string name="network_hidden_ssid">Hidden Network</string>
     <string name="network_status_connected_symbol">✓</string>
     <string name="network_action_details_symbol">›</string>
 
@@ -87,15 +87,19 @@
     <string name="about_donations_helloasso">HelloAsso</string>
     <string name="about_donations_paypal">PayPal</string>
     <string name="about_donations_info">Info</string>
+    <string name="about_privacy">Privacy policy</string>
 
     <!-- Changelog -->
     <string name="changelog_title">Changelog</string>
     <string-array name="changelog_entries">
-        <item>v0.9: Major code refactoring, added details dialog on AP click, stability, maintainability and translation.</item>
-        <item>v0.8: Added GPS tag in CSV and disclaimer.</item>
-        <item>v0.7: Added CSV creation and enriched access point information.</item>
-        <item>v0.6: Added auto-connect feature.</item>
-        <item>v0.5: Initial interface.</item>
+        <item>v0.9.7 : Channels page, to pick a quieter frequency.</item>
+        <item>v0.9.6 : Clearer network list, and a fresh survey.</item>
+        <item>v0.9.5 : CSV export and network list fixes.</item>
+        <item>v0.9 : Major code refactoring, added details dialog on AP click, stability, maintainability and translation.</item>
+        <item>v0.8 : Added GPS tag in CSV and disclaimer.</item>
+        <item>v0.7 : Added CSV creation and enriched access point information.</item>
+        <item>v0.6 : Added auto-connect feature.</item>
+        <item>v0.5 : Initial interface.</item>
     </string-array>
 
     <!-- Security Types -->
@@ -123,7 +127,39 @@
     <string name="frequency_band_2_4_ghz">2.4 GHz</string>
     <string name="frequency_band_5_ghz">5 GHz</string>
     <string name="frequency_band_6_ghz">6 GHz</string>
-    
+
+    <string name="action_open_wifi_settings">Wi-Fi settings</string>
+    <string name="action_new_survey">New survey</string>
+    <string name="new_survey_dialog_title">New survey?</string>
+    <string name="new_survey_dialog_message">The current survey will be cleared from memory. CSV files already exported stay in Downloads.</string>
+    <string name="new_survey_dialog_confirm">Clear</string>
+    <string name="network_list_summary">%1$d dBm · %2$s · channel %3$s · %4$s · %5$s</string>
+    <string name="network_more_symbol">...</string>
+    <string name="page_networks">Networks</string>
+    <string name="page_channels">Channels</string>
+    <string name="channels_band_24">2.4 GHz :</string>
+    <string name="channels_band_5">5 GHz :</string>
+    <string name="channels_band_6">6 GHz :</string>
+    <string name="channels_advice_rest">Channel %1$d least crowded.</string>
+    <string name="channels_advice_empty_one">Channel %1$s empty.</string>
+    <string name="channels_advice_empty_many">Channels %1$s empty.</string>
+    <string name="channels_range">%1$d–%2$d</string>
+    <string name="channels_list_last">%1$s and %2$s</string>
+    <string name="channels_save_image">Export chart</string>
+    <string name="channels_saved_toast">Chart saved to Pictures</string>
+    <string name="channels_save_failed">Could not save the image.</string>
+    <string name="channels_gps_unavailable">Unavailable</string>
+    <string name="channels_scan_date">Scan date :</string>
+    <string name="channels_scan_gps">GPS :</string>
+    <string name="about_license_short">(CC BY-NC-SA)</string>
+    <string name="action_delete_exports">Delete exports</string>
+    <string name="delete_exports_dialog_title">Delete the files?</string>
+    <string name="delete_exports_dialog_message">This permanently deletes the CSV files and charts saved by the application. Other files on the phone are left untouched.</string>
+    <string name="delete_exports_confirm">Delete</string>
+    <string name="delete_exports_done">Files deleted.</string>
+    <string name="delete_exports_none">No file to delete.</string>
+    <string name="action_share_image_title">Share image</string>
+
     <!-- Close App Dialog -->
     <string name="close_app_dialog_title">Close the application?</string>
     <string name="close_app_dialog_message">All scan data not exported will be permanently lost. Do you really want to quit?</string>

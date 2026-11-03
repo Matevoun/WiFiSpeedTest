@@ -52,17 +52,20 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import org.wda.wifispeedtest.ui.ApDetailsDialog
 import org.wda.wifispeedtest.ui.ChangelogDialog
-import org.wda.wifispeedtest.ui.ConnectionDialog
 import org.wda.wifispeedtest.ui.CreditsDialog
 import org.wda.wifispeedtest.ui.HomeScreen
 import org.wda.wifispeedtest.ui.ScanResultsScreen
@@ -92,6 +95,8 @@ class MainActivity : ComponentActivity() {
             .onEach { finish() }
             .launchIn(lifecycleScope)
 
+        viewModel.registerScanReceiver(this)
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -104,7 +109,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.updateCurrentConnectionInfo()
-        viewModel.registerScanReceiver(this)
         val connectivityManager = getSystemService(ConnectivityManager::class.java)
         if (connectivityManager != null) {
             val request = NetworkRequest.Builder()
@@ -116,7 +120,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        viewModel.unregisterScanReceiver(this)
         val connectivityManager = getSystemService(ConnectivityManager::class.java)
         connectivityManager?.unregisterNetworkCallback(networkCallback)
     }
@@ -137,6 +140,11 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(Settings.ACTION_WIFI_SETTINGS)
         context.startActivity(intent)
     }
+
+    override fun onDestroy() {
+        viewModel.unregisterScanReceiver(this)
+        super.onDestroy()
+    }
 }
 
 @Composable
@@ -151,19 +159,23 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
         if (isScanning) {
             spinnerVisible = true
         } else {
-            delay(minSpinnerShowMs)
+            delay(minSpinnerShowMs.milliseconds)
             spinnerVisible = false
         }
     }
 
     val currentBssid by viewModel.currentBssid.collectAsStateWithLifecycle()
     val currentSsid by viewModel.currentSsid.collectAsStateWithLifecycle()
-    val showConnectionFailedDialog by viewModel.showConnectionFailedDialog.collectAsStateWithLifecycle()
     val showCloseAppDialog by viewModel.showCloseAppDialog.collectAsStateWithLifecycle()
     val currentLocation by viewModel.currentLocation.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val locationPrefix = stringResource(R.string.location_display_prefix)
+    val shareCsvTitle = stringResource(R.string.action_share_csv_title)
+    val shareImageTitle = stringResource(R.string.action_share_image_title)
+    val lastScanAt by viewModel.lastScanAt.collectAsStateWithLifecycle()
+    val locationNotEnabled = stringResource(R.string.location_settings_not_enabled)
+    val locationCheckFailed = stringResource(R.string.location_check_failed)
     val mainActivity = context as? MainActivity
-    var resultToShowDialog by remember { mutableStateOf<WifiScanResult?>(null) }
     var showApDetailsDialog by remember { mutableStateOf<WifiScanResult?>(null) }
     var showLocationTemporarily by remember { mutableStateOf<String?>(null) }
     val showCreditsDialog = remember { mutableStateOf(false) }
@@ -173,8 +185,8 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
     LaunchedEffect(currentLocation) {
         currentLocation?.let { loc ->
             if (loc.contains(",")) {
-                showLocationTemporarily = "${context.getString(R.string.location_display_prefix)} $loc"
-                delay(3000)
+                showLocationTemporarily = "$locationPrefix $loc"
+                delay(3.seconds)
                 showLocationTemporarily = null
             }
         }
@@ -188,7 +200,18 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                 type = "text/csv"
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.action_share_csv_title)))
+            context.startActivity(Intent.createChooser(shareIntent, shareCsvTitle))
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.shareImageEvent.collect { uri ->
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                putExtra(Intent.EXTRA_STREAM, uri)
+                type = "image/png"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, shareImageTitle))
         }
     }
 
@@ -200,36 +223,14 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
     CreditsDialog(
         show = showCreditsDialog.value,
         onDismiss = { showCreditsDialog.value = false },
-        onShowChangelog = showChangelog
+        onShowChangelog = showChangelog,
+        onDeleteExports = { viewModel.deleteLocalExports() }
     )
 
     ChangelogDialog(
         show = showChangelogDialog.value,
         onDismiss = { showChangelogDialog.value = false }
     )
-
-    if (showConnectionFailedDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissConnectionFailedDialog() },
-            title = { Text(stringResource(id = R.string.network_connection_failed_title)) },
-            text = { Text(stringResource(id = R.string.network_connection_failed_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.dismissConnectionFailedDialog()
-                        mainActivity?.openWifiSettings(context)
-                    }
-                ) {
-                    Text(stringResource(id = R.string.action_open_settings))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissConnectionFailedDialog() }) {
-                    Text(stringResource(id = R.string.action_cancel))
-                }
-            }
-        )
-    }
     
     if (showCloseAppDialog) {
         AlertDialog(
@@ -265,13 +266,13 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
         } else {
             Toast.makeText(
                 context,
-                context.getString(R.string.location_settings_not_enabled),
+                locationNotEnabled,
                 Toast.LENGTH_LONG
             ).show()
         }
     }
-	
-	val actualCheckLocationSettingsAndScan = {
+
+    val actualCheckLocationSettingsAndScan = {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
 
         val builder = LocationSettingsRequest.Builder()
@@ -296,7 +297,7 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
             } else {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.location_check_failed),
+                    locationCheckFailed,
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -374,75 +375,68 @@ fun WifiScannerApp(viewModel: WifiViewModel) {
                     onClick = { viewModel.exportToCsvAndShare() },
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
-                    Text(stringResource(id = R.string.action_export_csv), modifier = Modifier.padding(16.dp))
+                    Text(stringResource(id = R.string.action_export_csv), modifier = Modifier.padding(8.dp), maxLines = 1, softWrap = false)
                 }
                 
                 FloatingActionButton(
                     onClick = { viewModel.requestCloseApp() },
                     containerColor = MaterialTheme.colorScheme.errorContainer
                 ) {
-                    Text(stringResource(id = R.string.close_app_button), modifier = Modifier.padding(16.dp))
+                    Text(stringResource(id = R.string.close_app_button), modifier = Modifier.padding(8.dp), maxLines = 1, softWrap = false)
                 }
 
                 FloatingActionButton(
                     onClick = { if (!isScanning) startScan() },
                     containerColor = MaterialTheme.colorScheme.primary,
                 ) {
-                    Text(stringResource(id = R.string.action_scan), modifier = Modifier.padding(16.dp))
+                    Text(stringResource(id = R.string.action_scan), modifier = Modifier.padding(8.dp), maxLines = 1, softWrap = false)
                 }
             }
         }
     ) { padding ->
-        Box(
+        Column(
             Modifier
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            when {
-                scanResults.isEmpty() && !isScanning -> HomeScreen(onShowChangelog = showChangelog)
-                else -> ScanResultsScreen(
-                    scanResults = scanResults,
-                    currentBssid = currentBssid,
-                    currentSsid = currentSsid,
-                    onItemClick = { resultToShowDialog = it },
-                    onDetailsClick = { showApDetailsDialog = it }
-                )
-            }
-
-            showLocationTemporarily?.let { locationText ->
-                Text(
-                    text = locationText,
+            if (showLocationTemporarily != null || spinnerVisible) {
+                Row(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (spinnerVisible) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    showLocationTemporarily?.let { locationText ->
+                        Text(
+                            text = locationText,
+                            modifier = Modifier.padding(start = 8.dp),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
             }
-
-            if (spinnerVisible) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 40.dp)
-                )
-            }
-
-            resultToShowDialog?.let { result ->
-                ConnectionDialog(
-                    result = result,
-                    onDismiss = { resultToShowDialog = null },
-                    onConnect = { password ->
-                        if (mainActivity?.hasAllPermissions(context) == true) {
-                            viewModel.connectToNetwork(result, password)
-                        } else {
-                            Toast.makeText(context, R.string.permissions_required_toast, Toast.LENGTH_LONG).show()
-                        }
-                        resultToShowDialog = null
-                    },
-                    currentBssid = currentBssid,
-                    currentSsid = currentSsid
-                )
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    scanResults.isEmpty() && !isScanning -> HomeScreen(onShowChangelog = showChangelog)
+                    else -> ScanResultsScreen(
+                        scanResults = scanResults,
+                        currentBssid = currentBssid,
+                        currentSsid = currentSsid,
+                        scanLocation = currentLocation,
+                        scanTimestamp = lastScanAt,
+                        onOpenWifiSettings = { mainActivity?.openWifiSettings(context) },
+                        onNewSurvey = { viewModel.clearSession() },
+                        onDetailsClick = { showApDetailsDialog = it },
+                        onSaveChannelImage = { viewModel.saveChannelImage(it) }
+                    )
+                }
             }
         }
     }
