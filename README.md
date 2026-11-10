@@ -7,6 +7,7 @@ Les mesures et les images restent sur le mobile. Aucun compte.
 
 - Play Store : https://play.google.com/store/apps/details?id=org.wda.wifispeedtest
 - Confidentialité : https://wda-fr.org/index.php?page=Apps/wifi-speed-test
+- Discord : https://discord.gg/hh5q3NxFgS
 - Association WDA : https://wda-fr.org
 
 Licence : CC BY-NC-SA 4.0.
