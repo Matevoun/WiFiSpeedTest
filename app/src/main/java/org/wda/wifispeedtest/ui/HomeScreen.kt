@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,15 +34,18 @@ import org.wda.wifispeedtest.R
 @Composable
 fun HomeScreen(onShowChangelog: () -> Unit) {
     val uriHandler = LocalUriHandler.current
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Message principal
-        Column(
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 100.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center
         ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             Text(
                 stringResource(id = R.string.scan_start_message),
                 modifier = Modifier.padding(horizontal = 32.dp),
@@ -60,12 +65,10 @@ fun HomeScreen(onShowChangelog: () -> Unit) {
                 textAlign = TextAlign.Center,
                 textDecoration = TextDecoration.Underline
             )
+            }
         }
-        // Version et crédits compacts
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {

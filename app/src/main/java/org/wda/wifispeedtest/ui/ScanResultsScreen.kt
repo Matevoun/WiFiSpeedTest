@@ -25,7 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -351,6 +353,7 @@ private fun ChannelPage(
     onSaveImage: (Bitmap) -> Unit
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val picture = remember { Picture() }
     val saveFailedText = stringResource(R.string.channels_save_failed)
@@ -413,6 +416,7 @@ private fun ChannelPage(
                         picture.beginRecording(width, height)
                     )
                     draw(this, layoutDirection, pictureCanvas, size) {
+                        drawRect(Color.White)
                         this@drawWithContent.drawContent()
                     }
                     picture.endRecording()
@@ -427,8 +431,8 @@ private fun ChannelPage(
                     val listed = shortenChannelList(
                         formatChannelList(
                             empty,
-                            { from, to -> context.getString(R.string.channels_range, from, to) },
-                            { head, last -> context.getString(R.string.channels_list_last, head, last) }
+                            { from, to -> resources.getString(R.string.channels_range, from, to) },
+                            { head, last -> resources.getString(R.string.channels_list_last, head, last) }
                         )
                     )
                     if (empty.size == 1) {
@@ -574,7 +578,7 @@ private fun ChannelBar(
 }
 
 @Composable
-private fun congestionColor(level: Int): androidx.compose.ui.graphics.Color {
+private fun congestionColor(level: Int): Color {
     return when {
         level > -55 -> colorResource(R.color.signal_very_weak)
         level > -65 -> colorResource(R.color.signal_weak)

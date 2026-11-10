@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">WiFi Speed Test</string>
 
     <!-- Permissions -->
@@ -77,7 +77,7 @@
     <string name="about_developer_name">Mathieu CHARREYRE</string>
     <string name="about_for_organization"> pour </string>
     <string name="about_organization_name">l\'Association WDA</string>
-    <string name="about_license_info">Licence : Partage à l\'identique, pas de commercialisation, citer les crédits.</string>
+    <string name="about_license_info">Licence CC BY-NC-SA 4.0.</string>
     <string name="about_read_tutorial_prefix">Lire un </string>
     <string name="about_tutorial_link_text">tutoriel Wi-Fi</string>
     <string name="about_on_forum_suffix"> sur le </string>
@@ -88,10 +88,13 @@
     <string name="about_donations_paypal">PayPal</string>
     <string name="about_donations_info">Infos</string>
     <string name="about_privacy">Confidentialité</string>
+    <string name="about_source">Code source</string>
+    <string name="about_discord">Discord</string>
 
     <!-- Changelog -->
     <string name="changelog_title">Changelog</string>
     <string-array name="changelog_entries">
+        <item>v0.9.8 : Image des canaux lisible, liens vers le code et Discord.</item>
         <item>v0.9.7 : Page Canaux, pour choisir une fréquence moins occupée.</item>
         <item>v0.9.6 : Liste des réseaux plus lisible, et nouveau relevé.</item>
         <item>v0.9.5 : Export CSV et liste des réseaux corrigés.</item>
@@ -134,7 +137,7 @@
     <string name="new_survey_dialog_message">Le relevé en cours sera effacé de la mémoire. Les CSV déjà exportés restent dans Téléchargements.</string>
     <string name="new_survey_dialog_confirm">Effacer</string>
     <string name="network_list_summary">%1$d dBm · %2$s · canal %3$s · %4$s · %5$s</string>
-    <string name="network_more_symbol">...</string>
+    <string name="network_more_symbol" tools:ignore="TypographyEllipsis">...</string>
     <string name="page_networks">Réseaux</string>
     <string name="page_channels">Canaux</string>
     <string name="channels_band_24">2,4 GHz :</string>

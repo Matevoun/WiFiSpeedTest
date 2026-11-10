@@ -203,11 +203,11 @@ class WifiViewModel(application: Application) : AndroidViewModel(application) {
             // Réinitialise la localisation pour forcer la mise à jour de l'UI
             _currentLocation.value = null
 
-            // Étape 1: Obtenir la localisation et attendre la fin.
+            // Étape 1 : Obtenir la localisation et attendre la fin.
             val location = fetchCurrentLocation()
             _currentLocation.value = location
 
-            // Étape 2: Démarrer le scan Wi-Fi, seulement après avoir eu la localisation.
+            // Étape 2 : Démarrer le scan Wi-Fi, seulement après avoir eu la localisation.
             triggerWifiScan()
             delay(20.seconds)
             if (ticket == scanTicket) {

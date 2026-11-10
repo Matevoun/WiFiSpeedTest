@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">WiFi Speed Test</string>
 
     <!-- Permissions -->
@@ -77,7 +77,7 @@
     <string name="about_developer_name">Mathieu CHARREYRE</string>
     <string name="about_for_organization"> for </string>
     <string name="about_organization_name">the WDA Association</string>
-    <string name="about_license_info">License: ShareAlike, NonCommercial, Attribution.</string>
+    <string name="about_license_info">License CC BY-NC-SA 4.0.</string>
     <string name="about_read_tutorial_prefix">Read a </string>
     <string name="about_tutorial_link_text">Wi-Fi tutorial</string>
     <string name="about_on_forum_suffix"> on the </string>
@@ -88,10 +88,13 @@
     <string name="about_donations_paypal">PayPal</string>
     <string name="about_donations_info">Info</string>
     <string name="about_privacy">Privacy policy</string>
+    <string name="about_source">Source code</string>
+    <string name="about_discord">Discord</string>
 
     <!-- Changelog -->
     <string name="changelog_title">Changelog</string>
     <string-array name="changelog_entries">
+        <item>v0.9.8 : Readable channel image, links to the code and Discord.</item>
         <item>v0.9.7 : Channels page, to pick a quieter frequency.</item>
         <item>v0.9.6 : Clearer network list, and a fresh survey.</item>
         <item>v0.9.5 : CSV export and network list fixes.</item>
@@ -109,7 +112,7 @@
     <string name="security_type_wep">WEP</string>
     <string name="security_type_open">Open</string>
 
-    <!-- WiFi Standards -->
+    <!-- Wi-Fi Standards -->
     <string name="wifi_standard_legacy">802.11a/b/g</string>
     <string name="wifi_standard_11n">Wi-Fi 4 (802.11n)</string>
     <string name="wifi_standard_11ac">Wi-Fi 5 (802.11ac)</string>
@@ -134,7 +137,7 @@
     <string name="new_survey_dialog_message">The current survey will be cleared from memory. CSV files already exported stay in Downloads.</string>
     <string name="new_survey_dialog_confirm">Clear</string>
     <string name="network_list_summary">%1$d dBm · %2$s · channel %3$s · %4$s · %5$s</string>
-    <string name="network_more_symbol">...</string>
+    <string name="network_more_symbol" tools:ignore="TypographyEllipsis">...</string>
     <string name="page_networks">Networks</string>
     <string name="page_channels">Channels</string>
     <string name="channels_band_24">2.4 GHz :</string>

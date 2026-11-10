@@ -80,16 +80,31 @@ fun CreditsDialog(
                     append(stringResource(id = R.string.about_developed_by))
                     append(" ")
                     pushLink(link = androidx.compose.ui.text.LinkAnnotation.Url(url = "https://mathieu.charreyre.net"))
-                    withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
                         append(stringResource(id = R.string.about_developer_name))
                     }
                     pop()
                     append(" ")
                     append(stringResource(id = R.string.about_for_organization))
                     append(" ")
+                    val organizationName = stringResource(id = R.string.about_wda_organization_name)
+                    val brand = "WDA"
+                    val brandStart = organizationName.indexOf(brand)
                     pushLink(link = androidx.compose.ui.text.LinkAnnotation.Url(url = "https://wda-fr.org"))
-                    withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
-                        append(stringResource(id = R.string.about_wda_organization_name))
+                    if (brandStart >= 0) {
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                            append(organizationName.substring(0, brandStart))
+                        }
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                            append(brand)
+                        }
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                            append(organizationName.substring(brandStart + brand.length))
+                        }
+                    } else {
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
+                            append(organizationName)
+                        }
                     }
                     pop()
                     append(".")
@@ -137,7 +152,7 @@ fun CreditsDialog(
                         .fillMaxWidth()
                         .clickable { onShowChangelog() },
                     color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
                     textDecoration = TextDecoration.Underline
                 )
@@ -167,14 +182,16 @@ fun CreditsDialog(
                             Text(
                                 stringResource(id = R.string.about_donations_helloasso),
                                 maxLines = 1,
-                                softWrap = false
+                                softWrap = false,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                         TextButton(onClick = { uriHandler.openUri("https://www.paypal.com/donate/?hosted_button_id=DZRY58WUANTAJ") }) {
                             Text(
                                 stringResource(id = R.string.about_donations_paypal),
                                 maxLines = 1,
-                                softWrap = false
+                                softWrap = false,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -189,6 +206,18 @@ fun CreditsDialog(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(id = R.string.about_privacy))
+                    }
+                    TextButton(
+                        onClick = { uriHandler.openUri("https://github.com/Matevoun/WiFiSpeedTest") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(id = R.string.about_source))
+                    }
+                    TextButton(
+                        onClick = { uriHandler.openUri("https://discord.gg/tebSxNtstP") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(id = R.string.about_discord))
                     }
                 }
             }

@@ -125,7 +125,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Unified permissions check for WiFi operations (scan + NEARBY_WIFI_DEVICES on Android 13+).
+     * Unified permissions check for Wi-Fi operations (scan + NEARBY_WIFI_DEVICES on Android 13+).
      */
     fun hasAllPermissions(context: Context): Boolean {
         val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

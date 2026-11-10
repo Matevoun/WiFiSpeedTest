@@ -134,7 +134,7 @@ fun getBandFromFrequency(context: Context, frequency: Int): String {
 }
 
 /**
- * Combine bande + largeur en texte lisible (ex: "2.4 GHz (20 MHz)").
+ * Combine bande + largeur en texte lisible (ex : "2.4 GHz (20 MHz)").
  */
 fun getBandAndWidth(context: Context, result: ScanResult): String {
     val band = getBandFromFrequency(context, result.frequency)
